@@ -1,10 +1,10 @@
-import express from "express";
+import { Router } from "express";
 import { createVehicle, getVehicles } from "../controllers/vehicleController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
-const router = express.Router();
+const router = Router();
 
-router.post("/", protect, createVehicle);
 router.get("/", protect, getVehicles);
+router.post("/", protect, createVehicle);
 
 export default router;

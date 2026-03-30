@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginRequest } from "../api/api.js";
+import { loginRequest } from "../api/api";
 
 function LoginPage() {
   const [form, setForm] = useState({
     email: "admin@mellostrucks.com",
     password: "123456789",
   });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,16 +26,22 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await loginRequest(form.email, form.password);
+      const data = await loginRequest({
+        email: form.email,
+        password: form.password,
+      });
+
+      console.log("Respuesta login:", data);
 
       if (data.token) {
         localStorage.setItem("mellos_token", data.token);
         localStorage.setItem("mellos_admin", JSON.stringify(data.admin));
         navigate("/admin");
       } else {
-        setError(data.message || "No se pudo iniciar sesión");
+        setError(data.message || "Credenciales incorrectas");
       }
     } catch (error) {
+      console.error("Error login:", error);
       setError("Error de conexión con el servidor");
     } finally {
       setLoading(false);
