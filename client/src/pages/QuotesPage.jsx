@@ -7,7 +7,6 @@ import {
 } from "../api/api";
 
 function QuotesPage() {
-  const token = localStorage.getItem("mellos_token");
 
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +60,7 @@ function QuotesPage() {
 
   const loadQuotes = async () => {
     try {
-      const data = await getQuotesRequest(token);
+      const data = await getQuotesRequest();
       setQuotes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error cargando cotizaciones:", error);
@@ -120,7 +119,7 @@ function QuotesPage() {
     setMessage("");
 
     try {
-      const data = await createQuoteRequest(token, form);
+      const data = await createQuoteRequest(form);
 
       if (data.quoteId) {
         setMessage("Cotización creada correctamente");
@@ -145,7 +144,7 @@ function QuotesPage() {
 
   const handleStatusChange = async (id, status) => {
     try {
-      await updateQuoteStatusRequest(token, id, status);
+      await updateQuoteStatusRequest(id, status);
       await loadQuotes();
     } catch (error) {
       console.error("Error actualizando estado:", error);
@@ -154,7 +153,7 @@ function QuotesPage() {
 
   const handleConvertQuote = async (id) => {
     try {
-      const data = await convertQuoteRequest(token, id);
+      const data = await convertQuoteRequest(id);
 
       if (data.clientId) {
         if (data.vehicleCreated) {

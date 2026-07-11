@@ -3,8 +3,11 @@ client/node_modules/
 server/node_modules/
 
 .env
+.env.local
 client/.env
+client/.env.local
 server/.env
+server/.env.local
 
 dist/
 build/

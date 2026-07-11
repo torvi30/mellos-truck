@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import PublicHome from "./pages/PublicHome.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import QuotesPage from "./pages/QuotesPage.jsx";
@@ -11,6 +12,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<PublicHome />} />
         <Route path="/admin/login" element={<LoginPage />} />
 
         <Route
@@ -27,7 +29,7 @@ function App() {
           <Route path="vehicles" element={<VehiclesPage />} />
         </Route>
 
-        <Route path="*" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   );

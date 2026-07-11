@@ -1,11 +1,14 @@
+import { useAuth } from "../contexts/AuthContext.jsx";
+
 function DashboardPage() {
-    const admin = JSON.parse(localStorage.getItem("mellos_admin") || "{}");
+    const { user } = useAuth();
+    const adminName = user?.displayName || user?.email || "Administrador";
   
     return (
       <div>
         <div className="page-header">
           <h1>Dashboard</h1>
-          <p>Bienvenido, {admin.name || "Administrador"}</p>
+          <p>Bienvenido, {adminName}</p>
         </div>
   
         <div className="stats-grid">

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginRequest } from "../api/api";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 function LoginPage() {
+  const { user, login } = useAuth();
   const [form, setForm] = useState({
     email: "admin@mellostrucks.com",
     password: "123456789",
@@ -12,6 +13,12 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/admin");
+    }
+  }, [user, navigate]);
 
   const handleChange = (e) => {
     setForm({
@@ -26,23 +33,11 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await loginRequest({
-        email: form.email,
-        password: form.password,
-      });
-
-      console.log("Respuesta login:", data);
-
-      if (data.token) {
-        localStorage.setItem("mellos_token", data.token);
-        localStorage.setItem("mellos_admin", JSON.stringify(data.admin));
-        navigate("/admin");
-      } else {
-        setError(data.message || "Credenciales incorrectas");
-      }
+      await login(form.email, form.password);
+      navigate("/admin");
     } catch (error) {
       console.error("Error login:", error);
-      setError("Error de conexión con el servidor");
+      setError(error.message || "Error de conexión");
     } finally {
       setLoading(false);
     }

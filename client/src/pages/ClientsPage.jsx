@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { getClientsRequest, createClientRequest } from "../api/api";
 
 function ClientsPage() {
-  const token = localStorage.getItem("mellos_token");
 
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +19,7 @@ function ClientsPage() {
 
   const loadClients = async () => {
     try {
-      const data = await getClientsRequest(token);
+      const data = await getClientsRequest();
       setClients(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error cargando clientes:", error);
@@ -62,7 +61,7 @@ function ClientsPage() {
     setMessage("");
 
     try {
-      const data = await createClientRequest(token, form);
+      const data = await createClientRequest(form);
 
       if (data.clientId) {
         setMessage("Cliente creado correctamente");

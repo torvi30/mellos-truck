@@ -1,9 +1,14 @@
 import { Navigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem("mellos_token");
+  const { user, loading } = useAuth();
 
-  if (!token) {
+  if (loading) {
+    return <p>Cargando sesión...</p>;
+  }
+
+  if (!user) {
     return <Navigate to="/admin/login" replace />;
   }
 

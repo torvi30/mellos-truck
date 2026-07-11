@@ -6,7 +6,6 @@ import {
 } from "../api/api";
 
 function VehiclesPage() {
-  const token = localStorage.getItem("mellos_token");
 
   const [vehicles, setVehicles] = useState([]);
   const [clients, setClients] = useState([]);
@@ -41,7 +40,7 @@ function VehiclesPage() {
 
   const loadVehicles = async () => {
     try {
-      const data = await getVehiclesRequest(token);
+      const data = await getVehiclesRequest();
       setVehicles(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error cargando vehículos:", error);
@@ -53,7 +52,7 @@ function VehiclesPage() {
 
   const loadClients = async () => {
     try {
-      const data = await getClientsRequest(token);
+      const data = await getClientsRequest();
       setClients(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error cargando clientes:", error);
@@ -95,7 +94,13 @@ function VehiclesPage() {
     setMessage("");
 
     try {
-      const data = await createVehicleRequest(token, form);
+      const selectedClient = clients.find((client) => client.id === form.client_id);
+      const payload = {
+        ...form,
+        client_name: selectedClient?.name || null,
+        client_phone: selectedClient?.phone || null,
+      };
+      const data = await createVehicleRequest(payload);
 
       if (data.vehicleId) {
         setMessage("Vehículo creado correctamente");

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createQuoteRequest } from "../api/api";
 
 function PublicHome() {
   const [form, setForm] = useState({
@@ -7,6 +8,8 @@ function PublicHome() {
     service: "",
     details: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   const services = [
     {
@@ -56,21 +59,35 @@ function PublicHome() {
     });
   };
 
-  const handleWhatsApp = () => {
-    const message = `
-Hola Mellos Trucks, quiero una cotización.
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
 
-Nombre: ${form.name}
-Teléfono: ${form.phone}
-Servicio: ${form.service}
-Detalles: ${form.details}
-    `.trim();
+    try {
+      await createQuoteRequest({
+        client_name: form.name,
+        phone: form.phone,
+        city: null,
+        vehicle_type: "No especificado",
+        plate: null,
+        service: form.service,
+        details: form.details,
+      });
 
-    const url = `https://wa.me/573000000000?text=${encodeURIComponent(
-      message
-    )}`;
-
-    window.open(url, "_blank");
+      setMessage("✅ Cotización enviada correctamente. Te contactaremos pronto.");
+      setForm({
+        name: "",
+        phone: "",
+        service: "",
+        details: "",
+      });
+    } catch (error) {
+      console.error(error);
+      setMessage("Error enviando la cotización. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -275,9 +292,11 @@ Detalles: ${form.details}
               onChange={handleChange}
             />
 
-            <button className="primary-btn" onClick={handleWhatsApp}>
-              Enviar cotización
+            <button className="primary-btn" onClick={handleSubmit} disabled={loading}>
+              {loading ? "Enviando..." : "Enviar cotización"}
             </button>
+
+            {message && <p className="form-message">{message}</p>}
           </div>
         </div>
       </section>

@@ -1,11 +1,12 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 function AdminLayout() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem("mellos_token");
-    localStorage.removeItem("mellos_admin");
+  const handleLogout = async () => {
+    await logout();
     navigate("/admin/login");
   };
 
