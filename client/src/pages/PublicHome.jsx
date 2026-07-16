@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { createQuoteRequest } from "../api/api";
+import { useEffect, useState } from "react";
+import { createQuoteRequest, getGalleryRequest } from "../api/api";
 
 function PublicHome() {
   const [form, setForm] = useState({
@@ -10,6 +10,8 @@ function PublicHome() {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [catalogImages, setCatalogImages] = useState([]);
+  const [vehicleImages, setVehicleImages] = useState([]);
 
   const services = [
     {
@@ -26,31 +28,26 @@ function PublicHome() {
     },
   ];
 
-  const gallery = [
-    {
-      title: "Frontal premium",
-      subtitle: "Presencia y fuerza visual",
-    },
-    {
-      title: "Iluminación pro",
-      subtitle: "Impacto de día y de noche",
-    },
-    {
-      title: "Detalle exterior",
-      subtitle: "Acabado limpio y potente",
-    },
-    {
-      title: "Proyecto completo",
-      subtitle: "Transformación integral",
-    },
-  ];
-
   const reasons = [
     "Atención directa y rápida",
     "Enfoque en vehículos pesados",
     "Imagen más profesional para el cliente",
     "Proceso simple de cotización",
   ];
+
+  useEffect(() => {
+    const loadGallery = async () => {
+      try {
+        const data = await getGalleryRequest();
+        setCatalogImages(Array.isArray(data.catalog) ? data.catalog : []);
+        setVehicleImages(Array.isArray(data.vehicles) ? data.vehicles : []);
+      } catch (error) {
+        console.error("Error cargando imágenes públicas:", error);
+      }
+    };
+
+    loadGallery();
+  }, []);
 
   const handleChange = (e) => {
     setForm({
@@ -222,27 +219,60 @@ function PublicHome() {
         </div>
       </section>
 
-      <section className="public-section" id="galeria">
+      <section className="public-section" id="catalogo">
         <div className="public-container">
           <div className="section-heading">
-            <span>Galería</span>
-            <h2>Visualmente esto tiene que vender solo</h2>
+            <span>Catálogo</span>
+            <h2>Lo que venden y lo que se puede mostrar</h2>
             <p>
-              Aquí después metemos fotos reales de trabajos, luces, accesorios y
-              resultados. Por ahora dejamos una base premium para mostrar la
-              estructura.
+              Aquí van las piezas, accesorios y productos que ofrecen para que
+              el cliente vea lo que puede conseguir.
             </p>
           </div>
 
           <div className="gallery-grid">
-            {gallery.map((item, index) => (
-              <div className="gallery-card" key={index}>
-                <div className="gallery-overlay">
-                  <h3>{item.title}</h3>
-                  <p>{item.subtitle}</p>
+            {catalogImages.length > 0 ? (
+              catalogImages.map((item) => (
+                <div className="gallery-card" key={item.path}>
+                  <img src={item.url} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <div className="gallery-overlay">
+                    <h3>{item.name}</h3>
+                    <p>Catálogo</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p>No hay imágenes de catálogo aún.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="public-section dark-section" id="vehiculos">
+        <div className="public-container">
+          <div className="section-heading">
+            <span>Vehículos</span>
+            <h2>Cómo quedan los vehículos después del trabajo</h2>
+            <p>
+              Esta sección muestra la parte visual del resultado final: el
+              vehículo ya transformado y listo para llamar la atención.
+            </p>
+          </div>
+
+          <div className="gallery-grid">
+            {vehicleImages.length > 0 ? (
+              vehicleImages.map((item) => (
+                <div className="gallery-card" key={item.path}>
+                  <img src={item.url} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <div className="gallery-overlay">
+                    <h3>{item.name}</h3>
+                    <p>Vehículo</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p>No hay imágenes de vehículos aún.</p>
+            )}
           </div>
         </div>
       </section>

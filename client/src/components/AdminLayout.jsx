@@ -23,6 +23,7 @@ function AdminLayout() {
           <Link to="/admin/quotes">Cotizaciones</Link>
           <Link to="/admin/clients">Clientes</Link>
           <Link to="/admin/vehicles">Vehículos</Link>
+          <Link to="/admin/gallery">Catálogo / Galería</Link>
         </nav>
 
         <button className="logout-btn" onClick={handleLogout}>

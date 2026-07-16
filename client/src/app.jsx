@@ -7,6 +7,7 @@ import ClientsPage from "./pages/ClientsPage.jsx";
 import VehiclesPage from "./pages/VehiclesPage.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
 import AdminLayout from "./components/AdminLayout.jsx";
+import GalleryPage from "./pages/GalleryPage.jsx";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="quotes" element={<QuotesPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="vehicles" element={<VehiclesPage />} />
+          <Route path="gallery" element={<GalleryPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />

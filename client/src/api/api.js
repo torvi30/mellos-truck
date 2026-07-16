@@ -155,32 +155,58 @@ export const convertQuoteRequest = async (id) => {
 };
 
 // ===== GALERÍA =====
+const listAllRecursively = async (storageRef) => {
+  const result = await listAll(storageRef);
+  const items = [...result.items];
+
+  for (const prefix of result.prefixes) {
+    items.push(...(await listAllRecursively(prefix)));
+  }
+
+  return items;
+};
+
 const buildGalleryItems = async (items) =>
   Promise.all(
-    items.map(async (item) => ({
-      name: item.name,
-      url: await getDownloadURL(item),
-      type: item.fullPath.startsWith("images/") ? "image" : "video",
-    }))
+    items.map(async (item) => {
+      const segments = item.fullPath.split("/");
+      const category = item.fullPath.startsWith("images/")
+        ? segments[1] || "catalog"
+        : "video";
+
+      return {
+        name: item.name,
+        path: item.fullPath,
+        url: await getDownloadURL(item),
+        type: item.fullPath.startsWith("images/") ? "image" : "video",
+        category,
+      };
+    })
   );
 
 export const getGalleryRequest = async () => {
   const imagesRef = ref(storage, "images");
   const videosRef = ref(storage, "videos");
 
-  const [imageList, videoList] = await Promise.all([
-    listAll(imagesRef),
-    listAll(videosRef),
+  const [imageItems, videoItems] = await Promise.all([
+    listAllRecursively(imagesRef),
+    listAllRecursively(videosRef),
   ]);
 
+  const images = await buildGalleryItems(imageItems);
+  const videos = await buildGalleryItems(videoItems);
+
   return {
-    images: await buildGalleryItems(imageList.items),
-    videos: await buildGalleryItems(videoList.items),
+    images,
+    videos,
+    catalog: images.filter((item) => item.category === "catalog"),
+    vehicles: images.filter((item) => item.category === "vehicles"),
+    services: images.filter((item) => item.category === "services"),
   };
 };
 
-export const uploadGalleryImageRequest = async (file) => {
-  const storageRef = ref(storage, `images/${Date.now()}-${file.name.replace(/\s+/g, "-")}`);
+export const uploadGalleryImageRequest = async (file, category = "catalog") => {
+  const storageRef = ref(storage, `images/${category}/${Date.now()}-${file.name.replace(/\s+/g, "-")}`);
   const snapshot = await uploadBytes(storageRef, file);
   const url = await getDownloadURL(snapshot.ref);
 
@@ -190,6 +216,7 @@ export const uploadGalleryImageRequest = async (file) => {
       name: snapshot.ref.name,
       url,
       type: "image",
+      category,
     },
   };
 };
@@ -209,8 +236,8 @@ export const uploadGalleryVideoRequest = async (file) => {
   };
 };
 
-export const deleteGalleryFileRequest = async (type, filename) => {
-  const targetRef = ref(storage, `${type}/${filename}`);
+export const deleteGalleryFileRequest = async (pathToDelete) => {
+  const targetRef = ref(storage, pathToDelete);
   await deleteObject(targetRef);
 
   return {

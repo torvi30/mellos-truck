@@ -1,43 +1,48 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { ensureUploadDirs } from "../utils/storage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const uploadsBase = path.join(__dirname, "../../uploads");
-const imagesDir = path.join(uploadsBase, "images");
 const videosDir = path.join(uploadsBase, "videos");
 
-const ensureDirs = () => {
-  if (!fs.existsSync(uploadsBase)) fs.mkdirSync(uploadsBase);
-  if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir);
-  if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir);
-};
+ensureUploadDirs();
 
-ensureDirs();
+const buildFileUrl = (relativePath) => `http://localhost:4000/uploads/${relativePath.replace(/\\/g, "/")}`;
+
+const listFilesRecursive = (directory) => {
+  if (!fs.existsSync(directory)) return [];
+
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return listFilesRecursive(fullPath);
+    return [{ name: entry.name, relativePath: path.relative(uploadsBase, fullPath) }];
+  });
+};
 
 export const getGalleryContent = async (req, res) => {
   try {
-    const imageFiles = fs.existsSync(imagesDir) ? fs.readdirSync(imagesDir) : [];
-    const videoFiles = fs.existsSync(videosDir) ? fs.readdirSync(videosDir) : [];
+    const imageFiles = listFilesRecursive(path.join(uploadsBase, "images"));
+    const videoFiles = listFilesRecursive(videosDir);
 
     const images = imageFiles.map((file) => ({
-      name: file,
-      url: `http://localhost:4000/uploads/images/${file}`,
+      name: file.name,
+      url: buildFileUrl(file.relativePath),
       type: "image",
+      path: file.relativePath,
     }));
 
     const videos = videoFiles.map((file) => ({
-      name: file,
-      url: `http://localhost:4000/uploads/videos/${file}`,
+      name: file.name,
+      url: buildFileUrl(file.relativePath),
       type: "video",
+      path: file.relativePath,
     }));
 
-    res.json({
-      images,
-      videos,
-    });
+    res.json({ images, videos });
   } catch (error) {
     res.status(500).json({
       message: "Error obteniendo galería",
@@ -49,17 +54,19 @@ export const getGalleryContent = async (req, res) => {
 export const uploadImage = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
-        message: "No se recibió ninguna imagen",
-      });
+      return res.status(400).json({ message: "No se recibió ninguna imagen" });
     }
+
+    const category = req.body?.category || "catalog";
 
     res.status(201).json({
       message: "Imagen subida correctamente",
       file: {
         name: req.file.filename,
-        url: `http://localhost:4000/uploads/images/${req.file.filename}`,
+        url: `http://localhost:4000/uploads/${req.file.path.replace(/\\/g, "/")}`,
         type: "image",
+        path: req.file.path.replace(/\\/g, "/"),
+        category,
       },
     });
   } catch (error) {
@@ -73,17 +80,16 @@ export const uploadImage = async (req, res) => {
 export const uploadVideo = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
-        message: "No se recibió ningún video",
-      });
+      return res.status(400).json({ message: "No se recibió ningún video" });
     }
 
     res.status(201).json({
       message: "Video subido correctamente",
       file: {
         name: req.file.filename,
-        url: `http://localhost:4000/uploads/videos/${req.file.filename}`,
+        url: `http://localhost:4000/uploads/${req.file.path.replace(/\\/g, "/")}`,
         type: "video",
+        path: req.file.path.replace(/\\/g, "/"),
       },
     });
   } catch (error) {
@@ -99,25 +105,18 @@ export const deleteGalleryFile = async (req, res) => {
     const { type, filename } = req.params;
 
     if (!["images", "videos"].includes(type)) {
-      return res.status(400).json({
-        message: "Tipo de archivo no válido",
-      });
+      return res.status(400).json({ message: "Tipo de archivo no válido" });
     }
 
-    const targetDir = type === "images" ? imagesDir : videosDir;
-    const targetPath = path.join(targetDir, filename);
+    const targetPath = path.join(uploadsBase, type, filename);
 
     if (!fs.existsSync(targetPath)) {
-      return res.status(404).json({
-        message: "Archivo no encontrado",
-      });
+      return res.status(404).json({ message: "Archivo no encontrado" });
     }
 
     fs.unlinkSync(targetPath);
 
-    res.json({
-      message: "Archivo eliminado correctamente",
-    });
+    res.json({ message: "Archivo eliminado correctamente" });
   } catch (error) {
     res.status(500).json({
       message: "Error eliminando archivo",

@@ -1,0 +1,16 @@
+node_modules/
+client/node_modules/
+server/node_modules/
+server/uploads/
+
+.env
+.env.local
+client/.env
+client/.env.local
+server/.env
+server/.env.local
+
+dist/
+build/
+
+.vite/

@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { protect } from "../middleware/authMiddleware.js";
 import {
   getGalleryContent,
@@ -8,30 +9,29 @@ import {
   uploadVideo,
   deleteGalleryFile,
 } from "../controllers/galleryController.js";
+import { ensureUploadDirs } from "../utils/storage.js";
 
 const router = express.Router();
 
-const imageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/images");
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, "-");
-    cb(null, `${Date.now()}-${base}${ext}`);
-  },
-});
+const buildStorage = (subfolder) =>
+  multer.diskStorage({
+    destination: (req, file, cb) => {
+      const category = req.body?.category || "catalog";
+      const targetDir = path.join("uploads", subfolder, category);
+      fs.mkdirSync(targetDir, { recursive: true });
+      cb(null, targetDir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const base = path.basename(file.originalname, ext).replace(/\s+/g, "-");
+      cb(null, `${Date.now()}-${base}${ext}`);
+    },
+  });
 
-const videoStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/videos");
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, "-");
-    cb(null, `${Date.now()}-${base}${ext}`);
-  },
-});
+ensureUploadDirs();
+
+const imageStorage = buildStorage("images");
+const videoStorage = buildStorage("videos");
 
 const imageUpload = multer({ storage: imageStorage });
 const videoUpload = multer({ storage: videoStorage });

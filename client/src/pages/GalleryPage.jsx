@@ -8,7 +8,8 @@ import {
 
 function GalleryPage() {
 
-  const [images, setImages] = useState([]);
+  const [catalogImages, setCatalogImages] = useState([]);
+  const [vehicleImages, setVehicleImages] = useState([]);
   const [videos, setVideos] = useState([]);
   const [message, setMessage] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -17,7 +18,8 @@ function GalleryPage() {
   const loadGallery = async () => {
     try {
       const data = await getGalleryRequest();
-      setImages(Array.isArray(data.images) ? data.images : []);
+      setCatalogImages(Array.isArray(data.catalog) ? data.catalog : []);
+      setVehicleImages(Array.isArray(data.vehicles) ? data.vehicles : []);
       setVideos(Array.isArray(data.videos) ? data.videos : []);
     } catch (error) {
       console.error("Error cargando galería:", error);
@@ -28,7 +30,7 @@ function GalleryPage() {
     loadGallery();
   }, []);
 
-  const handleImageUpload = async (e) => {
+  const handleCatalogUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -36,7 +38,27 @@ function GalleryPage() {
     setMessage("");
 
     try {
-      const data = await uploadGalleryImageRequest(file);
+      const data = await uploadGalleryImageRequest(file, "catalog");
+      setMessage(data.message || "Imagen subida");
+      await loadGallery();
+    } catch (error) {
+      console.error(error);
+      setMessage("Error subiendo imagen");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleVehicleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setMessage("");
+
+    try {
+      const data = await uploadGalleryImageRequest(file, "vehicles");
       setMessage(data.message || "Imagen subida");
       await loadGallery();
     } catch (error) {
@@ -68,12 +90,12 @@ function GalleryPage() {
     }
   };
 
-  const handleDelete = async (type, filename) => {
+  const handleDelete = async (pathToDelete) => {
     const confirmDelete = window.confirm("¿Eliminar este archivo?");
     if (!confirmDelete) return;
 
     try {
-      const data = await deleteGalleryFileRequest(type, filename);
+      const data = await deleteGalleryFileRequest(pathToDelete);
       setMessage(data.message || "Archivo eliminado");
       await loadGallery();
     } catch (error) {
@@ -91,9 +113,19 @@ function GalleryPage() {
 
       <div className="page-top-grid">
         <div className="form-card">
-          <h2>Subir imagen</h2>
+          <h2>Subir al catálogo</h2>
+          <p>Lo que venden</p>
           <label className="upload-box">
-            <input type="file" accept="image/*" onChange={handleImageUpload} hidden />
+            <input type="file" accept="image/*" onChange={handleCatalogUpload} hidden />
+            <span>{uploadingImage ? "Subiendo..." : "Seleccionar imagen"}</span>
+          </label>
+        </div>
+
+        <div className="form-card">
+          <h2>Subir a vehículos</h2>
+          <p>Cómo quedan los vehículos</p>
+          <label className="upload-box">
+            <input type="file" accept="image/*" onChange={handleVehicleUpload} hidden />
             <span>{uploadingImage ? "Subiendo..." : "Seleccionar imagen"}</span>
           </label>
         </div>
@@ -117,20 +149,47 @@ function GalleryPage() {
       <div style={{ height: "24px" }} />
 
       <div className="form-card">
-        <h2>Imágenes subidas</h2>
+        <h2>Catálogo</h2>
 
-        {images.length === 0 ? (
-          <p>No hay imágenes subidas.</p>
+        {catalogImages.length === 0 ? (
+          <p>No hay imágenes de catálogo.</p>
         ) : (
           <div className="gallery-admin-grid">
-            {images.map((item) => (
-              <div key={item.name} className="gallery-admin-card">
+            {catalogImages.map((item) => (
+              <div key={item.path} className="gallery-admin-card">
                 <img src={item.url} alt={item.name} />
                 <div className="gallery-admin-info">
                   <p>{item.name}</p>
                   <button
                     className="quick-btn quick-btn-red"
-                    onClick={() => handleDelete("images", item.name)}
+                    onClick={() => handleDelete(item.path)}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ height: "24px" }} />
+
+      <div className="form-card">
+        <h2>Vehículos</h2>
+
+        {vehicleImages.length === 0 ? (
+          <p>No hay imágenes de vehículos.</p>
+        ) : (
+          <div className="gallery-admin-grid">
+            {vehicleImages.map((item) => (
+              <div key={item.path} className="gallery-admin-card">
+                <img src={item.url} alt={item.name} />
+                <div className="gallery-admin-info">
+                  <p>{item.name}</p>
+                  <button
+                    className="quick-btn quick-btn-red"
+                    onClick={() => handleDelete(item.path)}
                   >
                     Eliminar
                   </button>
@@ -151,13 +210,13 @@ function GalleryPage() {
         ) : (
           <div className="gallery-admin-grid">
             {videos.map((item) => (
-              <div key={item.name} className="gallery-admin-card">
+              <div key={item.path} className="gallery-admin-card">
                 <video src={item.url} controls />
                 <div className="gallery-admin-info">
                   <p>{item.name}</p>
                   <button
                     className="quick-btn quick-btn-red"
-                    onClick={() => handleDelete("videos", item.name)}
+                    onClick={() => handleDelete(item.path)}
                   >
                     Eliminar
                   </button>
