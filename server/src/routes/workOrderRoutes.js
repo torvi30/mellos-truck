@@ -3,6 +3,7 @@ import {
   getWorkOrders,
   createWorkOrder,
   updateWorkOrderStatus,
+  updateWorkOrder,
   assignWorkOrderItem,
   removeWorkOrderItem,
   deleteWorkOrder,
@@ -12,6 +13,7 @@ const router = express.Router();
 
 router.get("/", getWorkOrders);
 router.post("/", createWorkOrder);
+router.put("/:id", updateWorkOrder);
 router.patch("/:id/status", updateWorkOrderStatus);
 router.post("/:id/items", assignWorkOrderItem);
 router.delete("/:id/items/:itemId", removeWorkOrderItem);

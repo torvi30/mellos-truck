@@ -38,14 +38,18 @@ export default function WorkshopPage() {
     descripcion: "",
   });
 
-  // Modal Detalle & Repuestos
-  const [selectedOrderForParts, setSelectedOrderForParts] = useState(null);
+  // FICHA TÉCNICA 360° / CONSOLA DE CONTROL TOTAL DE LA MULA
+  const [activeTruckDetail, setActiveTruckDetail] = useState(null);
+  const [editLaborCost, setEditLaborCost] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  // Formulario para agregar repuesto desde la ficha
   const [assignForm, setAssignForm] = useState({
     productId: "",
     cantidad: 1,
   });
 
-  // Toast
+  // Notificaciones Toast
   const [feedback, setFeedback] = useState(null);
 
   const showNotification = (msg, type = "success") => {
@@ -81,6 +85,43 @@ export default function WorkshopPage() {
     loadData();
   }, []);
 
+  // Abrir Ficha Técnica 360°
+  const openTruckCockpit = (order) => {
+    setActiveTruckDetail(order);
+    setEditLaborCost(String(order.costo_mano_obra || 2000000));
+    setEditNotes(order.descripcion || "");
+    setAssignForm({
+      productId: products[0]?.id || "",
+      cantidad: 1,
+    });
+  };
+
+  // Guardar Cambios en la Ficha (Mano de obra, notas)
+  const handleSaveTruckDetail = async () => {
+    if (!activeTruckDetail) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/work-orders/${activeTruckDetail.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          costo_mano_obra: parseFloat(editLaborCost) || 0,
+          descripcion: editNotes,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification("Cambios guardados en la orden");
+        setActiveTruckDetail(data.order);
+        loadData();
+      }
+    } catch (err) {
+      showNotification("Error al guardar cambios", "error");
+    }
+  };
+
+  // Crear orden de trabajo
   const handleCreateOrder = async (e) => {
     e.preventDefault();
     if (!createForm.cliente || !createForm.placa || !createForm.marca) {
@@ -118,6 +159,7 @@ export default function WorkshopPage() {
     }
   };
 
+  // Mover de fase (desde el Kanban o desde el Cockpit)
   const handleMoveStage = async (orderId, newStage) => {
     try {
       const res = await fetch(`${API_BASE}/work-orders/${orderId}/status`, {
@@ -129,6 +171,9 @@ export default function WorkshopPage() {
       const data = await res.json();
       if (res.ok) {
         showNotification(data.message);
+        if (activeTruckDetail && activeTruckDetail.id === orderId) {
+          setActiveTruckDetail(data.order);
+        }
         loadData();
       }
     } catch (err) {
@@ -136,20 +181,13 @@ export default function WorkshopPage() {
     }
   };
 
-  const openPartsModal = (order) => {
-    setSelectedOrderForParts(order);
-    setAssignForm({
-      productId: products[0]?.id || "",
-      cantidad: 1,
-    });
-  };
-
+  // Asignar pieza y descontar de inventario
   const handleAssignItem = async (e) => {
     e.preventDefault();
-    if (!selectedOrderForParts || !assignForm.productId) return;
+    if (!activeTruckDetail || !assignForm.productId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/work-orders/${selectedOrderForParts.id}/items`, {
+      const res = await fetch(`${API_BASE}/work-orders/${activeTruckDetail.id}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -161,7 +199,7 @@ export default function WorkshopPage() {
       const data = await res.json();
       if (res.ok) {
         showNotification(data.message);
-        setSelectedOrderForParts(data.order);
+        setActiveTruckDetail(data.order);
         loadData();
       } else {
         showNotification(data.message || "Error al asignar pieza", "error");
@@ -171,6 +209,7 @@ export default function WorkshopPage() {
     }
   };
 
+  // Retirar pieza y reintegrar al inventario
   const handleRemoveItem = async (orderId, itemId) => {
     try {
       const res = await fetch(`${API_BASE}/work-orders/${orderId}/items/${itemId}`, {
@@ -180,14 +219,17 @@ export default function WorkshopPage() {
       const data = await res.json();
       if (res.ok) {
         showNotification(data.message);
-        setSelectedOrderForParts(data.order);
+        setActiveTruckDetail(data.order);
         loadData();
+      } else {
+        showNotification(data.message || "Error al retirar pieza", "error");
       }
     } catch (err) {
-      showNotification("Error al retirar pieza", "error");
+      showNotification("Error de conexión al servidor", "error");
     }
   };
 
+  // Eliminar orden
   const handleDeleteOrder = async (orderId, plate) => {
     if (!window.confirm(`¿Seguro de retirar la orden de la mula ${plate}? Las piezas volverán al inventario.`)) {
       return;
@@ -200,6 +242,9 @@ export default function WorkshopPage() {
 
       if (res.ok) {
         showNotification(`Mula ${plate} retirada del taller`);
+        if (activeTruckDetail && activeTruckDetail.id === orderId) {
+          setActiveTruckDetail(null);
+        }
         loadData();
       }
     } catch (err) {
@@ -284,7 +329,7 @@ export default function WorkshopPage() {
           flexWrap: "wrap",
           gap: "1rem",
           marginBottom: "1.2rem",
-          padding: "1.1rem 1.4rem",
+          padding: "1rem 1.4rem",
           background: "linear-gradient(135deg, rgba(22, 24, 30, 0.85), rgba(12, 14, 18, 0.95))",
           backdropFilter: "blur(20px)",
           borderRadius: "14px",
@@ -296,7 +341,7 @@ export default function WorkshopPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
             <h1
               style={{
-                fontSize: "1.6rem",
+                fontSize: "1.5rem",
                 fontWeight: "900",
                 margin: 0,
                 letterSpacing: "0.04em",
@@ -320,13 +365,12 @@ export default function WorkshopPage() {
                 letterSpacing: "0.08em",
               }}
             >
-              KANBAN V3 PRO
+              TABLERO KANBAN
             </span>
           </div>
 
-          {/* Ribbon con métricas en tiempo real */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", marginTop: "0.4rem", fontSize: "0.82rem", color: "#94a3b8" }}>
-            <span style={{ color: "#f8fafc", fontWeight: "700" }}>🚛 {orders.length} Naves en Patio</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", marginTop: "0.35rem", fontSize: "0.82rem", color: "#94a3b8" }}>
+            <span style={{ color: "#f8fafc", fontWeight: "700" }}>🚛 {orders.length} Mulas en Patio</span>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>•</span>
             <span style={{ color: "#fb923c" }}>⚙️ {orders.filter((o) => o.estado === "Taller").length} Pailería</span>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>•</span>
@@ -336,7 +380,6 @@ export default function WorkshopPage() {
           </div>
         </div>
 
-        {/* Acciones del Header */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
           <div style={{ position: "relative" }}>
             <input
@@ -345,15 +388,14 @@ export default function WorkshopPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                width: "250px",
-                padding: "0.6rem 1rem",
+                width: "240px",
+                padding: "0.55rem 0.95rem",
                 borderRadius: "10px",
                 background: "rgba(10, 12, 16, 0.85)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
                 color: "#fff",
                 fontSize: "0.85rem",
                 outline: "none",
-                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)",
               }}
             />
           </div>
@@ -361,7 +403,7 @@ export default function WorkshopPage() {
           <Link
             to="/admin/inventory"
             style={{
-              padding: "0.6rem 1rem",
+              padding: "0.55rem 0.95rem",
               background: "rgba(56, 189, 248, 0.1)",
               color: "#38bdf8",
               border: "1px solid rgba(56, 189, 248, 0.3)",
@@ -369,39 +411,31 @@ export default function WorkshopPage() {
               fontWeight: "800",
               fontSize: "0.85rem",
               textDecoration: "none",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              transition: "all 0.2s",
             }}
           >
-            📦 Tienda Container
+            📦 Container
           </Link>
 
           <button
             onClick={() => setShowCreateModal(true)}
             style={{
-              padding: "0.65rem 1.3rem",
+              padding: "0.6rem 1.25rem",
               background: "linear-gradient(135deg, #f59e0b, #ea580c)",
               color: "#000",
               border: "none",
               borderRadius: "10px",
               fontWeight: "900",
-              fontSize: "0.88rem",
+              fontSize: "0.85rem",
               cursor: "pointer",
               boxShadow: "0 4px 18px rgba(245, 158, 11, 0.4)",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              letterSpacing: "0.02em",
             }}
           >
-            <span style={{ fontSize: "1.1rem" }}>+</span> Ingresar Mula
+            + Ingresar Mula
           </button>
         </div>
       </header>
 
-      {/* KANBAN BOARD ULTRA-PRO (5 Columnas con identidad visual y tarjetas cinemáticas) */}
+      {/* KANBAN BOARD ESCALABLE CON TARJETAS COMPACTAS (Haz clic para abrir Ficha 360°) */}
       {loading ? (
         <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>
           Cargando naves en taller...
@@ -410,7 +444,7 @@ export default function WorkshopPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(5, minmax(285px, 1fr))",
+            gridTemplateColumns: "repeat(5, minmax(280px, 1fr))",
             gap: "1.1rem",
             flex: 1,
             overflowX: "auto",
@@ -425,21 +459,21 @@ export default function WorkshopPage() {
               <div
                 key={stage.id}
                 style={{
-                  background: "linear-gradient(180deg, rgba(20, 22, 28, 0.8) 0%, rgba(12, 14, 18, 0.9) 100%)",
+                  background: "linear-gradient(180deg, rgba(20, 22, 28, 0.85) 0%, rgba(12, 14, 18, 0.95) 100%)",
                   backdropFilter: "blur(16px)",
                   borderRadius: "14px",
-                  border: `1px solid ${stage.color}22`,
+                  border: `1px solid ${stage.color}25`,
                   borderTop: `3px solid ${stage.color}`,
                   display: "flex",
                   flexDirection: "column",
-                  maxHeight: "calc(100vh - 200px)",
+                  maxHeight: "calc(100vh - 195px)",
                   boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
                 }}
               >
                 {/* Header de Fase */}
                 <div
                   style={{
-                    padding: "0.9rem 1.1rem",
+                    padding: "0.85rem 1.1rem",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
@@ -447,13 +481,13 @@ export default function WorkshopPage() {
                     background: `linear-gradient(90deg, ${stage.color}11, transparent)`,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <span style={{ fontSize: "1rem" }}>{stage.icon}</span>
                     <div>
                       <div style={{ fontSize: "0.88rem", fontWeight: "900", color: stage.color, letterSpacing: "0.06em" }}>
                         {stage.title}
                       </div>
-                      <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                      <div style={{ fontSize: "0.7rem", color: "#64748b" }}>
                         {stage.subtitle}
                       </div>
                     </div>
@@ -465,7 +499,7 @@ export default function WorkshopPage() {
                       color: stage.color,
                       fontSize: "0.78rem",
                       fontWeight: "900",
-                      padding: "0.2rem 0.6rem",
+                      padding: "0.2rem 0.55rem",
                       borderRadius: "12px",
                       border: `1px solid ${stage.color}44`,
                     }}
@@ -474,15 +508,15 @@ export default function WorkshopPage() {
                   </span>
                 </div>
 
-                {/* Contenedor de Tarjetas */}
+                {/* Lista de Tarjetas Compactas y Escalables */}
                 <div
                   style={{
                     flex: 1,
                     overflowY: "auto",
-                    padding: "0.9rem",
+                    padding: "0.85rem",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "1rem",
+                    gap: "0.75rem",
                   }}
                 >
                   {stageOrders.length === 0 ? (
@@ -497,7 +531,7 @@ export default function WorkshopPage() {
                         borderRadius: "10px",
                       }}
                     >
-                      <div style={{ fontSize: "1.5rem", marginBottom: "0.3rem", opacity: 0.5 }}>🚛</div>
+                      <div style={{ fontSize: "1.4rem", marginBottom: "0.3rem", opacity: 0.5 }}>🚛</div>
                       Sin naves en esta fase
                     </div>
                   ) : (
@@ -509,291 +543,109 @@ export default function WorkshopPage() {
                       return (
                         <div
                           key={order.id}
+                          onClick={() => openTruckCockpit(order)}
                           style={{
-                            background: "#14161c",
-                            borderRadius: "12px",
+                            background: "linear-gradient(145deg, #181a22, #13141b)",
+                            borderRadius: "11px",
                             border: "1px solid rgba(255, 255, 255, 0.08)",
-                            overflow: "hidden",
-                            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                            padding: "0.85rem",
                             display: "flex",
                             flexDirection: "column",
-                            transition: "all 0.25s ease",
+                            gap: "0.55rem",
+                            cursor: "pointer",
+                            boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
+                            transition: "all 0.2s ease",
                             position: "relative",
+                            borderLeft: `4px solid ${stage.color}`,
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = stage.color;
+                            e.currentTarget.style.transform = "translateY(-2px)";
+                            e.currentTarget.style.boxShadow = `0 8px 22px rgba(0,0,0,0.6), 0 0 12px ${stage.color}33`;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)";
+                            e.currentTarget.style.borderLeft = `4px solid ${stage.color}`;
+                            e.currentTarget.style.transform = "translateY(0)";
+                            e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.4)";
                           }}
                         >
-                          {/* BANNER FOTOGRÁFICO DE LA MULA (Nivel Ultra PRO) */}
-                          <div
-                            style={{
-                              position: "relative",
-                              height: "100px",
-                              width: "100%",
-                              overflow: "hidden",
-                              background: "#000",
-                            }}
-                          >
+                          {/* Fila 1: Placa Troquelada + Marca + Miniatura */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.55rem" }}>
+                              {/* Placa Colombiana */}
+                              <div
+                                style={{
+                                  background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                                  color: "#000",
+                                  fontWeight: "900",
+                                  fontSize: "0.82rem",
+                                  letterSpacing: "0.12em",
+                                  padding: "0.15rem 0.5rem",
+                                  borderRadius: "4px",
+                                  border: "1.5px solid #000",
+                                  boxShadow: "0 2px 5px rgba(0,0,0,0.6)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  lineHeight: "1",
+                                }}
+                              >
+                                <span>{order.placa}</span>
+                              </div>
+
+                              <span
+                                style={{
+                                  fontSize: "0.68rem",
+                                  color: "#94a3b8",
+                                  fontWeight: "800",
+                                  background: "rgba(255,255,255,0.06)",
+                                  padding: "0.15rem 0.45rem",
+                                  borderRadius: "4px",
+                                }}
+                              >
+                                {order.marca}
+                              </span>
+                            </div>
+
+                            {/* Foto Miniatura Redonda */}
                             <img
                               src={truckImg}
                               alt={order.placa}
                               style={{
-                                width: "100%",
-                                height: "100%",
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "8px",
                                 objectFit: "cover",
-                                objectPosition: "center",
-                                filter: "brightness(0.85) contrast(1.1)",
+                                border: "1px solid rgba(255,255,255,0.15)",
                               }}
                             />
-
-                            {/* Gradiente de Oscuridad para Contraste */}
-                            <div
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                background: "linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(20,22,28,0.95) 100%)",
-                              }}
-                            ></div>
-
-                            {/* Placa Colombiana Troquelada Metálica */}
-                            <div
-                              style={{
-                                position: "absolute",
-                                top: "8px",
-                                left: "10px",
-                                background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
-                                color: "#000",
-                                fontWeight: "900",
-                                fontSize: "0.85rem",
-                                letterSpacing: "0.14em",
-                                padding: "0.18rem 0.6rem",
-                                borderRadius: "4px",
-                                border: "1.5px solid #000",
-                                boxShadow: "0 3px 8px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.6)",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                lineHeight: "1",
-                              }}
-                            >
-                              <span>{order.placa}</span>
-                              <span style={{ fontSize: "0.42rem", letterSpacing: "0.2em", fontWeight: "800", color: "#333", marginTop: "1px" }}>
-                                COLOMBIA
-                              </span>
-                            </div>
-
-                            {/* Tag de Marca del Camión */}
-                            <div
-                              style={{
-                                position: "absolute",
-                                top: "8px",
-                                right: "10px",
-                                background: "rgba(0,0,0,0.7)",
-                                backdropFilter: "blur(6px)",
-                                border: "1px solid rgba(255,255,255,0.2)",
-                                color: "#f8fafc",
-                                fontSize: "0.68rem",
-                                fontWeight: "800",
-                                padding: "0.2rem 0.5rem",
-                                borderRadius: "4px",
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              {order.marca}
-                            </div>
-
-                            {/* Botón rápido para retirar del taller */}
-                            <button
-                              onClick={() => handleDeleteOrder(order.id, order.placa)}
-                              title="Retirar orden"
-                              style={{
-                                position: "absolute",
-                                bottom: "6px",
-                                right: "10px",
-                                background: "rgba(0,0,0,0.6)",
-                                border: "none",
-                                color: "#94a3b8",
-                                borderRadius: "50%",
-                                width: "20px",
-                                height: "20px",
-                                cursor: "pointer",
-                                fontSize: "0.7rem",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              ✕
-                            </button>
                           </div>
 
-                          {/* CONTENIDO DE LA TARJETA */}
-                          <div style={{ padding: "0.9rem", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-                            {/* Línea & Cliente */}
-                            <div>
-                              <h4 style={{ margin: 0, fontSize: "0.92rem", fontWeight: "900", color: "#f8fafc" }}>
-                                {getCleanTruckTitle(order)}
-                              </h4>
-                              <div style={{ fontSize: "0.78rem", color: "#94a3b8", marginTop: "2px", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                                <span>👤 {order.cliente}</span>
-                                {order.telefono && (
-                                  <a
-                                    href={`https://wa.me/${order.telefono.replace(/[^0-9]/g, "")}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{ color: "#22c55e", textDecoration: "none", fontWeight: "700" }}
-                                  >
-                                    💬
-                                  </a>
-                                )}
-                              </div>
+                          {/* Fila 2: Modelo & Cliente */}
+                          <div>
+                            <div style={{ fontWeight: "800", color: "#f8fafc", fontSize: "0.88rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {getCleanTruckTitle(order)}
                             </div>
-
-                            {/* Barra de Progreso Neón */}
-                            <div>
-                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "#64748b", marginBottom: "3px" }}>
-                                <span>Avance en Taller</span>
-                                <span style={{ color: stage.color, fontWeight: "800" }}>{stage.progress}%</span>
-                              </div>
-                              <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px", overflow: "hidden" }}>
-                                <div
-                                  style={{
-                                    height: "100%",
-                                    width: `${stage.progress}%`,
-                                    background: `linear-gradient(90deg, ${stage.color}, ${stage.dotColor})`,
-                                    boxShadow: `0 0 8px ${stage.color}`,
-                                  }}
-                                ></div>
-                              </div>
+                            <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "1px" }}>
+                              👤 {order.cliente}
                             </div>
+                          </div>
 
-                            {/* Detalle o Repuestos Asignados */}
-                            <div
-                              onClick={() => openPartsModal(order)}
-                              style={{
-                                background: "rgba(56, 189, 248, 0.06)",
-                                border: "1px solid rgba(56, 189, 248, 0.2)",
-                                borderRadius: "8px",
-                                padding: "0.5rem 0.7rem",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                cursor: "pointer",
-                                transition: "all 0.2s",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.76rem" }}>
-                                <span>📦</span>
-                                <span style={{ color: "#38bdf8", fontWeight: "800" }}>
-                                  {partsCount > 0 ? `${partsCount} Pieza(s) Container` : "Sin piezas del Container"}
-                                </span>
-                              </div>
-                              <span style={{ fontSize: "0.74rem", fontWeight: "800", color: partsCount > 0 ? "#f59e0b" : "#64748b" }}>
-                                {partsCount > 0 ? `$${(partsTotal / 1000000).toFixed(1)}M` : "+ Asignar"}
-                              </span>
-                            </div>
+                          {/* Fila 3: Barra de Progreso y Piezas Container */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.73rem" }}>
+                            <span style={{ color: partsCount > 0 ? "#38bdf8" : "#64748b", fontWeight: "700" }}>
+                              📦 {partsCount > 0 ? `${partsCount} pieza(s)` : "Sin piezas"}
+                            </span>
 
-                            {/* Acciones Showroom & WhatsApp si está terminado */}
-                            {(order.estado === "Terminado" || order.estado === "Entregado") && order.slug && (
-                              <div style={{ display: "flex", gap: "0.4rem" }}>
-                                <Link
-                                  to={`/galeria/${order.slug}`}
-                                  target="_blank"
-                                  style={{
-                                    flex: 1,
-                                    padding: "0.4rem 0.6rem",
-                                    background: "rgba(16, 185, 129, 0.15)",
-                                    border: "1px solid rgba(16, 185, 129, 0.35)",
-                                    color: "#34d399",
-                                    borderRadius: "8px",
-                                    fontSize: "0.74rem",
-                                    fontWeight: "800",
-                                    textAlign: "center",
-                                    textDecoration: "none",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "0.3rem",
-                                  }}
-                                >
-                                  ⚡ Showroom 4K
-                                </Link>
+                            <span style={{ color: partsCount > 0 ? "#f59e0b" : "#64748b", fontWeight: "800" }}>
+                              {partsCount > 0 ? `$${(partsTotal / 1000000).toFixed(1)}M COP` : ""}
+                            </span>
 
-                                {order.whatsappShareUrl && (
-                                  <a
-                                    href={order.whatsappShareUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      flex: 1,
-                                      padding: "0.4rem 0.6rem",
-                                      background: "linear-gradient(135deg, #22c55e, #16a34a)",
-                                      color: "#000",
-                                      borderRadius: "8px",
-                                      fontSize: "0.74rem",
-                                      fontWeight: "900",
-                                      textAlign: "center",
-                                      textDecoration: "none",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      gap: "0.3rem",
-                                      boxShadow: "0 2px 8px rgba(34, 197, 94, 0.3)",
-                                    }}
-                                  >
-                                    💬 WhatsApp
-                                  </a>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Botones de Transición de Fase */}
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "0.3rem" }}>
-                              {stage.id !== "Ingreso" && (
-                                <button
-                                  onClick={() => {
-                                    const idx = STAGES.findIndex((s) => s.id === stage.id);
-                                    if (idx > 0) handleMoveStage(order.id, STAGES[idx - 1].id);
-                                  }}
-                                  style={{
-                                    background: "transparent",
-                                    border: "none",
-                                    color: "#64748b",
-                                    fontSize: "0.74rem",
-                                    cursor: "pointer",
-                                    fontWeight: "700",
-                                    padding: "0.2rem 0.4rem",
-                                  }}
-                                >
-                                  ◀ Volver
-                                </button>
-                              )}
-
-                              {stage.id !== "Entregado" ? (
-                                <button
-                                  onClick={() => {
-                                    const idx = STAGES.findIndex((s) => s.id === stage.id);
-                                    if (idx < STAGES.length - 1) handleMoveStage(order.id, STAGES[idx + 1].id);
-                                  }}
-                                  style={{
-                                    marginLeft: "auto",
-                                    padding: "0.45rem 0.9rem",
-                                    borderRadius: "8px",
-                                    background: `linear-gradient(135deg, ${stage.color}, ${stage.dotColor})`,
-                                    border: "none",
-                                    color: "#000",
-                                    fontSize: "0.76rem",
-                                    fontWeight: "900",
-                                    cursor: "pointer",
-                                    boxShadow: `0 2px 10px ${stage.color}55`,
-                                    letterSpacing: "0.02em",
-                                  }}
-                                >
-                                  ➔ Pasar a {STAGES[STAGES.findIndex((s) => s.id === stage.id) + 1]?.title}
-                                </button>
-                              ) : (
-                                <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "#38bdf8", fontWeight: "800" }}>
-                                  ✓ Despachada a Carretera
-                                </span>
-                              )}
-                            </div>
+                            {/* Indicador de Clic */}
+                            <span style={{ color: "#64748b", fontSize: "0.75rem" }}>
+                              Ver ➔
+                            </span>
                           </div>
                         </div>
                       );
@@ -806,221 +658,513 @@ export default function WorkshopPage() {
         </div>
       )}
 
-      {/* MODAL DETALLADO DE REPUESTOS DEL CONTAINER */}
-      {selectedOrderForParts && (
+      {/* CONSOLA DE CONTROL TOTAL / FICHA TÉCNICA 360° (SE ABRE CON 1 CLIC EN CUALQUIER MULA) */}
+      {activeTruckDetail && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(12px)",
+            backdropFilter: "blur(14px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 10000,
-            padding: "1rem",
+            padding: "1.2rem",
           }}
         >
           <div
             style={{
-              background: "#161820",
-              border: "1px solid rgba(56, 189, 248, 0.35)",
-              borderRadius: "16px",
-              padding: "2rem",
+              background: "#151720",
+              border: "1px solid rgba(245, 158, 11, 0.35)",
+              borderRadius: "18px",
               width: "100%",
-              maxWidth: "540px",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
+              maxWidth: "760px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              boxShadow: "0 25px 70px rgba(0,0,0,0.9)",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.2rem" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                  <span
-                    style={{
-                      background: "#facc15",
-                      color: "#000",
-                      fontWeight: "900",
-                      fontSize: "0.9rem",
-                      padding: "0.18rem 0.55rem",
-                      borderRadius: "4px",
-                      border: "1.5px solid #000",
-                    }}
-                  >
-                    {selectedOrderForParts.placa}
-                  </span>
-                  <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: "900", color: "#f8fafc" }}>
-                    {getCleanTruckTitle(selectedOrderForParts)}
-                  </h3>
-                </div>
-                <div style={{ fontSize: "0.82rem", color: "#94a3b8", marginTop: "4px" }}>
-                  👤 {selectedOrderForParts.cliente} • 📞 {selectedOrderForParts.telefono || "Sin teléfono"}
-                </div>
-              </div>
+            {/* 1. Header Visual con Fotografía de la Mula */}
+            <div
+              style={{
+                position: "relative",
+                height: "170px",
+                width: "100%",
+                overflow: "hidden",
+                borderTopLeftRadius: "18px",
+                borderTopRightRadius: "18px",
+              }}
+            >
+              <img
+                src={getTruckImage(activeTruckDetail)}
+                alt={activeTruckDetail.placa}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  filter: "brightness(0.8) contrast(1.1)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(21, 23, 32, 0.98) 100%)",
+                }}
+              ></div>
 
+              {/* Botón de Cerrar */}
               <button
-                onClick={() => setSelectedOrderForParts(null)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "1.2rem", cursor: "pointer" }}
+                onClick={() => setActiveTruckDetail(null)}
+                style={{
+                  position: "absolute",
+                  top: "14px",
+                  right: "14px",
+                  background: "rgba(0,0,0,0.7)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  color: "#fff",
+                  borderRadius: "50%",
+                  width: "32px",
+                  height: "32px",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 ✕
               </button>
+
+              {/* Placa y Título en el Header */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "16px",
+                  left: "20px",
+                  right: "20px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-end",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                  {/* Placa 3D */}
+                  <div
+                    style={{
+                      background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                      color: "#000",
+                      fontWeight: "900",
+                      fontSize: "1.1rem",
+                      letterSpacing: "0.15em",
+                      padding: "0.25rem 0.8rem",
+                      borderRadius: "6px",
+                      border: "2px solid #000",
+                      boxShadow: "0 4px 10px rgba(0,0,0,0.8)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div>{activeTruckDetail.placa}</div>
+                    <div style={{ fontSize: "0.45rem", letterSpacing: "0.25em", color: "#333", fontWeight: "800" }}>
+                      COLOMBIA
+                    </div>
+                  </div>
+
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: "1.4rem", fontWeight: "900", color: "#f8fafc" }}>
+                      {getCleanTruckTitle(activeTruckDetail)}
+                    </h2>
+                    <div style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "2px" }}>
+                      👤 {activeTruckDetail.cliente} {activeTruckDetail.telefono && `• 📞 ${activeTruckDetail.telefono}`}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleDeleteOrder(activeTruckDetail.id, activeTruckDetail.placa)}
+                  style={{
+                    background: "rgba(239, 68, 68, 0.15)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    color: "#f87171",
+                    padding: "0.4rem 0.8rem",
+                    borderRadius: "8px",
+                    fontSize: "0.78rem",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                  }}
+                >
+                  🗑️ Retirar Mula del Taller
+                </button>
+              </div>
             </div>
 
-            {/* Lista de Piezas Asignadas */}
-            <div style={{ marginBottom: "1.4rem" }}>
-              <div style={{ fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.6rem" }}>
-                Piezas Asignadas ({selectedOrderForParts.items ? selectedOrderForParts.items.length : 0})
+            {/* 2. Cuerpo de la Ficha 360° */}
+            <div style={{ padding: "1.8rem", display: "flex", flexDirection: "column", gap: "1.4rem" }}>
+              {/* Stepper de Fases del Taller (Permite mover la mula con 1 clic) */}
+              <div
+                style={{
+                  background: "rgba(10, 12, 16, 0.7)",
+                  padding: "1rem",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(255, 255, 255, 0.06)",
+                }}
+              >
+                <div style={{ fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.6rem" }}>
+                  Fase Actual en el Taller: <span style={{ color: "#f59e0b" }}>{activeTruckDetail.estado}</span> (Haz clic para cambiar fase)
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.5rem" }}>
+                  {STAGES.map((stg) => {
+                    const isCurrent = activeTruckDetail.estado === stg.id;
+                    return (
+                      <button
+                        key={stg.id}
+                        onClick={() => handleMoveStage(activeTruckDetail.id, stg.id)}
+                        style={{
+                          padding: "0.6rem 0.4rem",
+                          borderRadius: "8px",
+                          border: isCurrent ? `2px solid ${stg.color}` : "1px solid rgba(255,255,255,0.08)",
+                          background: isCurrent ? `${stg.color}25` : "rgba(255,255,255,0.03)",
+                          color: isCurrent ? stg.color : "#94a3b8",
+                          fontWeight: isCurrent ? "900" : "600",
+                          fontSize: "0.78rem",
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "0.25rem",
+                          transition: "all 0.2s",
+                        }}
+                      >
+                        <span style={{ fontSize: "1rem" }}>{stg.icon}</span>
+                        <span>{stg.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {(!selectedOrderForParts.items || selectedOrderForParts.items.length === 0) ? (
-                <div style={{ padding: "1rem", textAlign: "center", background: "rgba(0,0,0,0.25)", borderRadius: "8px", color: "#64748b", fontSize: "0.85rem" }}>
-                  No hay repuestos asignados todavía.
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "170px", overflowY: "auto" }}>
-                  {selectedOrderForParts.items.map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "0.55rem 0.8rem",
-                        background: "rgba(0,0,0,0.3)",
-                        borderRadius: "8px",
-                        border: "1px solid rgba(255,255,255,0.05)",
-                        fontSize: "0.85rem",
-                      }}
-                    >
-                      <div>
-                        <span style={{ color: "#f59e0b", fontWeight: "900" }}>{item.cantidad}x</span>{" "}
-                        <span style={{ color: "#f8fafc", fontWeight: "600" }}>{item.nombre}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                        <span style={{ color: "#38bdf8", fontWeight: "800" }}>
-                          ${(item.subtotal || 0).toLocaleString("es-CO")}
-                        </span>
-                        <button
-                          onClick={() => handleRemoveItem(selectedOrderForParts.id, item.id)}
-                          title="Devolver al Container"
-                          style={{
-                            background: "rgba(239, 68, 68, 0.15)",
-                            border: "1px solid rgba(239, 68, 68, 0.3)",
-                            color: "#ef4444",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            padding: "0.2rem 0.45rem",
-                            fontSize: "0.75rem",
-                            fontWeight: "800",
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
+              {/* Enlace Magic Link & WhatsApp si está Terminado o Entregado */}
+              {(activeTruckDetail.estado === "Terminado" || activeTruckDetail.estado === "Entregado") && (
+                <div
+                  style={{
+                    background: "rgba(16, 185, 129, 0.1)",
+                    border: "1px solid rgba(16, 185, 129, 0.35)",
+                    borderRadius: "12px",
+                    padding: "1rem",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "1rem",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: "0.95rem", fontWeight: "900", color: "#34d399" }}>
+                      ⚡ Showroom Cinematográfico 4K Activo
                     </div>
-                  ))}
+                    <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "2px" }}>
+                      Esta nave ya tiene su propia vitrina con slider interactivo y video de dron.
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "0.6rem" }}>
+                    {activeTruckDetail.slug && (
+                      <Link
+                        to={`/galeria/${activeTruckDetail.slug}`}
+                        target="_blank"
+                        style={{
+                          padding: "0.6rem 1rem",
+                          background: "#10b981",
+                          color: "#000",
+                          borderRadius: "8px",
+                          fontWeight: "900",
+                          fontSize: "0.85rem",
+                          textDecoration: "none",
+                        }}
+                      >
+                        👁️ Ver Showroom 4K
+                      </Link>
+                    )}
+
+                    {activeTruckDetail.whatsappShareUrl && (
+                      <a
+                        href={activeTruckDetail.whatsappShareUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          padding: "0.6rem 1rem",
+                          background: "#22c55e",
+                          color: "#000",
+                          borderRadius: "8px",
+                          fontWeight: "900",
+                          fontSize: "0.85rem",
+                          textDecoration: "none",
+                        }}
+                      >
+                        📱 Compartir WhatsApp
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Total Repuestos */}
+              {/* Gestión de Repuestos del Container */}
+              <div
+                style={{
+                  background: "rgba(10, 12, 16, 0.7)",
+                  padding: "1.2rem",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(255, 255, 255, 0.06)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
+                  <div style={{ fontSize: "0.85rem", fontWeight: "800", color: "#38bdf8", textTransform: "uppercase" }}>
+                    📦 Repuestos & Lujos del Container Asignados ({activeTruckDetail.items ? activeTruckDetail.items.length : 0})
+                  </div>
+                  <div style={{ fontSize: "0.85rem", fontWeight: "900", color: "#38bdf8" }}>
+                    Total Piezas: ${(activeTruckDetail.costo_repuestos || 0).toLocaleString("es-CO")} COP
+                  </div>
+                </div>
+
+                {/* Lista de Repuestos */}
+                {(!activeTruckDetail.items || activeTruckDetail.items.length === 0) ? (
+                  <div style={{ padding: "1.2rem", textAlign: "center", background: "rgba(0,0,0,0.3)", borderRadius: "8px", color: "#64748b", fontSize: "0.85rem" }}>
+                    No se han asignado piezas del inventario a esta mula todavía.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
+                    {activeTruckDetail.items.map((item) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "0.6rem 0.9rem",
+                          background: "rgba(255,255,255,0.03)",
+                          borderRadius: "8px",
+                          border: "1px solid rgba(255,255,255,0.05)",
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        <div>
+                          <span style={{ color: "#f59e0b", fontWeight: "900" }}>{item.cantidad}x</span>{" "}
+                          <span style={{ color: "#f8fafc", fontWeight: "600" }}>{item.nombre}</span>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+                          <span style={{ color: "#38bdf8", fontWeight: "800" }}>
+                            ${(item.subtotal || 0).toLocaleString("es-CO")}
+                          </span>
+                          <button
+                            onClick={() => handleRemoveItem(activeTruckDetail.id, item.id)}
+                            title="Devolver al Container"
+                            style={{
+                              background: "rgba(239, 68, 68, 0.15)",
+                              border: "1px solid rgba(239, 68, 68, 0.3)",
+                              color: "#f87171",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              padding: "0.2rem 0.5rem",
+                              fontSize: "0.75rem",
+                              fontWeight: "800",
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Formulario Rápido para Asignar Piezas */}
+                <form onSubmit={handleAssignItem} style={{ display: "flex", gap: "0.8rem", marginTop: "0.8rem" }}>
+                  <select
+                    value={assignForm.productId}
+                    onChange={(e) => setAssignForm({ ...assignForm, productId: e.target.value })}
+                    style={{
+                      flex: 1,
+                      padding: "0.65rem",
+                      borderRadius: "8px",
+                      background: "#0a0c10",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      color: "#fff",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id} disabled={p.stock <= 0}>
+                        {p.nombre} (Stock: {p.stock}) — ${p.precio.toLocaleString("es-CO")}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="number"
+                    min="1"
+                    max={selectedProduct ? selectedProduct.stock : 99}
+                    value={assignForm.cantidad}
+                    onChange={(e) => setAssignForm({ ...assignForm, cantidad: e.target.value })}
+                    style={{
+                      width: "70px",
+                      padding: "0.65rem",
+                      borderRadius: "8px",
+                      background: "#0a0c10",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      color: "#fff",
+                      fontSize: "0.95rem",
+                      fontWeight: "800",
+                      textAlign: "center",
+                    }}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={!selectedProduct || selectedProduct.stock < 1}
+                    style={{
+                      padding: "0.65rem 1.2rem",
+                      background: "linear-gradient(135deg, #0284c7, #0369a1)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontWeight: "900",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    + Asignar y Descontar
+                  </button>
+                </form>
+              </div>
+
+              {/* Mano de Obra, Notas & Costo Total */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "1.2rem",
+                }}
+              >
+                <div>
+                  <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.4rem" }}>
+                    Mano de Obra ($ COP)
+                  </label>
+                  <input
+                    type="number"
+                    value={editLaborCost}
+                    onChange={(e) => setEditLaborCost(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "0.7rem",
+                      borderRadius: "8px",
+                      background: "#0a0c10",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      color: "#f8fafc",
+                      fontSize: "1rem",
+                      fontWeight: "900",
+                    }}
+                  />
+
+                  <div style={{ marginTop: "0.8rem", fontSize: "0.85rem", color: "#94a3b8" }}>
+                    Total Orden Acumulado:{" "}
+                    <strong style={{ color: "#f59e0b", fontSize: "1.1rem" }}>
+                      ${((parseFloat(editLaborCost) || 0) + (activeTruckDetail.costo_repuestos || 0)).toLocaleString("es-CO")} COP
+                    </strong>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.4rem" }}>
+                    Especificaciones / Notas de Pailería
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Detalles de pailería, medidas del bomper, cortes láser..."
+                    style={{
+                      width: "100%",
+                      padding: "0.7rem",
+                      borderRadius: "8px",
+                      background: "#0a0c10",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      color: "#fff",
+                      fontSize: "0.85rem",
+                      resize: "none",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Botones Finales de la Consola */}
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  paddingTop: "0.7rem",
-                  marginTop: "0.7rem",
-                  borderTop: "1px dashed rgba(255,255,255,0.1)",
-                  fontSize: "0.9rem",
-                  fontWeight: "900",
+                  alignItems: "center",
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                  paddingTop: "1.2rem",
                 }}
               >
-                <span style={{ color: "#94a3b8" }}>Total Repuestos Container:</span>
-                <span style={{ color: "#38bdf8" }}>
-                  ${(selectedOrderForParts.costo_repuestos || 0).toLocaleString("es-CO")} COP
-                </span>
-              </div>
-            </div>
-
-            {/* Asignar Nueva Pieza */}
-            <form onSubmit={handleAssignItem} style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.2rem" }}>
-              <div style={{ fontSize: "0.8rem", color: "#38bdf8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.6rem" }}>
-                + Descontar y Asignar Pieza del Inventario
-              </div>
-
-              <div style={{ display: "flex", gap: "0.8rem", marginBottom: "0.8rem" }}>
-                <select
-                  value={assignForm.productId}
-                  onChange={(e) => setAssignForm({ ...assignForm, productId: e.target.value })}
-                  style={{
-                    flex: 1,
-                    padding: "0.65rem",
-                    borderRadius: "8px",
-                    background: "#0c0e12",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id} disabled={p.stock <= 0}>
-                      {p.nombre} (Stock: {p.stock}) — ${p.precio.toLocaleString("es-CO")}
-                    </option>
-                  ))}
-                </select>
-
-                <input
-                  type="number"
-                  min="1"
-                  max={selectedProduct ? selectedProduct.stock : 99}
-                  value={assignForm.cantidad}
-                  onChange={(e) => setAssignForm({ ...assignForm, cantidad: e.target.value })}
-                  style={{
-                    width: "70px",
-                    padding: "0.65rem",
-                    borderRadius: "8px",
-                    background: "#0c0e12",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    fontSize: "0.95rem",
-                    fontWeight: "800",
-                    textAlign: "center",
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.8rem" }}>
                 <button
                   type="button"
-                  onClick={() => setSelectedOrderForParts(null)}
+                  onClick={() => window.print()}
                   style={{
-                    padding: "0.6rem 1.2rem",
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#94a3b8",
+                    padding: "0.65rem 1.2rem",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    color: "#cbd5e1",
                     borderRadius: "8px",
+                    fontWeight: "700",
                     cursor: "pointer",
                     fontSize: "0.85rem",
                   }}
                 >
-                  Cerrar
+                  🖨️ Imprimir Ficha de Parabrisas
                 </button>
-                <button
-                  type="submit"
-                  disabled={!selectedProduct || selectedProduct.stock < 1}
-                  style={{
-                    padding: "0.65rem 1.4rem",
-                    background: "linear-gradient(135deg, #0284c7, #0369a1)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "8px",
-                    fontWeight: "900",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                  }}
-                >
-                  Confirmar Asignación
-                </button>
+
+                <div style={{ display: "flex", gap: "0.8rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTruckDetail(null)}
+                    style={{
+                      padding: "0.65rem 1.2rem",
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      color: "#94a3b8",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    Cerrar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveTruckDetail}
+                    style={{
+                      padding: "0.65rem 1.5rem",
+                      background: "linear-gradient(135deg, #f59e0b, #ea580c)",
+                      color: "#000",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontWeight: "900",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    💾 Guardar Cambios
+                  </button>
+                </div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

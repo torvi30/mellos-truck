@@ -562,4 +562,35 @@ export const deleteWorkOrder = async (req, res) => {
   }
 };
 
+/**
+ * 7. Actualizar datos de la orden (Mano de obra, notas, color)
+ * PUT /api/work-orders/:id
+ */
+export const updateWorkOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { costo_mano_obra, descripcion, color, fecha_estimada } = req.body;
+
+    const order = memoryWorkOrders.find((o) => o.id === parseInt(id, 10));
+    if (!order) {
+      return res.status(404).json({ message: "Orden no encontrada" });
+    }
+
+    if (costo_mano_obra !== undefined) order.costo_mano_obra = parseFloat(costo_mano_obra) || 0;
+    if (descripcion !== undefined) order.descripcion = descripcion;
+    if (color !== undefined) order.color = color;
+    if (fecha_estimada !== undefined) order.fecha_estimada = fecha_estimada;
+
+    recalculateTotals(order);
+
+    res.json({
+      success: true,
+      message: `Mula ${order.placa} actualizada correctamente`,
+      order,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error al actualizar orden", error: error.message });
+  }
+};
+
 export { memoryWorkOrders };
