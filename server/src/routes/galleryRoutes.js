@@ -9,7 +9,7 @@ import {
   uploadVideo,
   deleteGalleryFile,
 } from "../controllers/galleryController.js";
-import { ensureUploadDirs } from "../utils/storage.js";
+import { ensureUploadDirs, uploadsBase } from "../utils/storage.js";
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ const buildStorage = (subfolder) =>
   multer.diskStorage({
     destination: (req, file, cb) => {
       const category = req.body?.category || "catalog";
-      const targetDir = path.join("uploads", subfolder, category);
+      const targetDir = path.join(uploadsBase, subfolder, category);
       fs.mkdirSync(targetDir, { recursive: true });
       cb(null, targetDir);
     },

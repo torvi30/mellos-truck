@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import ImageUploader from "../components/ImageUploader";
+import { showSuccessToast, showErrorToast, showConfirmAlert } from "../utils/alerts";
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([]);
@@ -15,6 +17,7 @@ export default function InventoryPage() {
     stock: "5",
     min_stock_alert: "3",
     categoria: "Acero Inoxidable",
+    imagen_url: "",
   });
 
   const categories = [
@@ -55,15 +58,21 @@ export default function InventoryPage() {
         body: JSON.stringify({ delta }),
       });
       if (res.ok) {
+        showSuccessToast(delta > 0 ? "+1 unidad ingresada al Container" : "-1 unidad despachada a taller");
         await loadInventory();
       }
     } catch (err) {
-      console.error(err);
+      showErrorToast("No se pudo actualizar el stock");
     }
   };
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (!form.nombre || !form.sku) {
+      showErrorToast("Ingresa nombre y SKU del producto");
+      return;
+    }
+
     try {
       const res = await fetch("http://localhost:4000/api/products", {
         method: "POST",
@@ -72,6 +81,7 @@ export default function InventoryPage() {
       });
 
       if (res.ok) {
+        showSuccessToast("¡Producto registrado en el Container con éxito!");
         await loadInventory();
         setShowModal(false);
         setForm({
@@ -81,10 +91,14 @@ export default function InventoryPage() {
           stock: "5",
           min_stock_alert: "3",
           categoria: "Acero Inoxidable",
+          imagen_url: "",
         });
+      } else {
+        const errData = await res.json();
+        showErrorToast(errData.message || "Error al crear producto");
       }
     } catch (err) {
-      console.error(err);
+      showErrorToast("Error de conexión al servidor");
     }
   };
 
@@ -139,11 +153,12 @@ export default function InventoryPage() {
         />
       </div>
 
-      {/* Tabla de Productos */}
-      <div className="studio-card-wrapper">
-        <table className="pro-table">
+      {/* Tabla de Productos con Contenedor Responsive */}
+      <div className="studio-card-wrapper" style={{ overflowX: "auto", width: "100%" }}>
+        <table className="pro-table" style={{ minWidth: "680px" }}>
           <thead>
             <tr>
+              <th style={{ width: "65px", textAlign: "center" }}>Foto</th>
               <th>SKU / Código</th>
               <th>Producto & Descripción</th>
               <th>Categoría</th>
@@ -156,13 +171,13 @@ export default function InventoryPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: "center", padding: "30px" }}>
+                <td colSpan="8" style={{ textAlign: "center", padding: "30px" }}>
                   Cargando productos de la Tienda Container...
                 </td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>
+                <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>
                   No se encontraron productos con los filtros seleccionados.
                 </td>
               </tr>
@@ -171,6 +186,25 @@ export default function InventoryPage() {
                 const isCritical = item.stock <= item.min_stock_alert;
                 return (
                   <tr key={item.id} className={isCritical ? "row-critical-stock" : ""}>
+                    <td style={{ textAlign: "center", verticalAlign: "middle" }}>
+                      <img
+                        src={item.imagen_url || "/images/showroom/detail_bumper_chrome.jpg"}
+                        alt={item.nombre}
+                        style={{
+                          width: "46px",
+                          height: "46px",
+                          objectFit: "cover",
+                          borderRadius: "8px",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          display: "inline-block",
+                          background: "#0c0e12",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                        }}
+                        onError={(e) => {
+                          e.target.src = "/images/showroom/detail_bumper_chrome.jpg";
+                        }}
+                      />
+                    </td>
                     <td>
                       <span className="sku-badge">{item.sku}</span>
                     </td>
@@ -218,10 +252,10 @@ export default function InventoryPage() {
         </table>
       </div>
 
-      {/* Modal para Crear Producto */}
+      {/* Modal para Crear Producto con Carga de Foto y Previsualización */}
       {showModal && (
         <div className="modal-backdrop">
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: "560px", maxHeight: "92vh", overflowY: "auto" }}>
             <div className="modal-header">
               <h2>📦 Registrar Producto en Tienda Container</h2>
               <button className="btn-close-modal" onClick={() => setShowModal(false)}>
@@ -229,7 +263,16 @@ export default function InventoryPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreate}>
+            <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              {/* Uploader de Foto de Producto con Live Preview */}
+              <ImageUploader
+                label="📸 Foto del Producto / Accesorio (Vista Previa en Vivo)"
+                currentUrl={form.imagen_url}
+                category="products"
+                aspectRatio="16/9"
+                helperText="Arrastra la foto o selecciónala (JPG, PNG, WEBP máx 12MB)"
+                onImageChange={(url) => setForm((prev) => ({ ...prev, imagen_url: url }))}
+              />
               <div className="form-field">
                 <label>Nombre del Producto / Accesorio *</label>
                 <input

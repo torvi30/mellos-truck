@@ -3124,3 +3124,123 @@ select {
     page-break-after: avoid;
   }
 }
+
+/* ==========================================================
+   SWEETALERT2 DARK INDUSTRIAL THEME - MELLOS TRUCK
+   ========================================================== */
+.dark-swal-popup {
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(245, 158, 11, 0.15) !important;
+  border-radius: 16px !important;
+  font-family: inherit !important;
+}
+
+.dark-swal-title {
+  color: #f8fafc !important;
+  font-size: 1.35rem !important;
+  font-weight: 900 !important;
+}
+
+.dark-swal-text {
+  color: #94a3b8 !important;
+  font-size: 0.92rem !important;
+  line-height: 1.5 !important;
+}
+
+.dark-swal-toast {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+  border-radius: 12px !important;
+  font-family: inherit !important;
+  padding: 0.75rem 1.2rem !important;
+}
+
+/* ==========================================================
+   COMPONENT: IMAGE UPLOADER DARK INDUSTRIAL
+   ========================================================== */
+.image-uploader-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.image-uploader-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #cbd5e1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.image-uploader-dropzone {
+  border: 2px dashed rgba(245, 158, 11, 0.35);
+  background: rgba(18, 20, 28, 0.7);
+  border-radius: 12px;
+  padding: 1.4rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 145px;
+}
+
+.image-uploader-dropzone:hover,
+.image-uploader-dropzone.drag-active {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+}
+
+.image-uploader-preview-box {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #0c0e12;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+}
+
+.image-uploader-preview-img {
+  width: 100%;
+  height: 175px;
+  object-fit: cover;
+  display: block;
+}
+
+.image-uploader-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.image-uploader-preview-box:hover .image-uploader-overlay,
+.image-uploader-preview-box:active .image-uploader-overlay {
+  opacity: 1;
+}
+
+/* Modal and Responsive tweaks */
+@media (max-width: 768px) {
+  .cockpit-modal-container {
+    width: 96vw !important;
+    max-height: 94vh !important;
+    padding: 0.8rem !important;
+  }
+  
+  .image-uploader-preview-img {
+    height: 145px !important;
+  }
+}

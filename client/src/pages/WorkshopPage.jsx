@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import ImageUploader from "../components/ImageUploader";
+import BeforeAfterSlider from "../components/BeforeAfterSlider";
+import { showSuccessToast, showErrorToast, showConfirmAlert } from "../utils/alerts";
 
 const API_BASE = "http://localhost:4000/api";
 
@@ -40,12 +43,15 @@ export default function WorkshopPage() {
     color: "",
     costo_mano_obra: "2500000",
     descripcion: "",
+    before_url: "",
   });
 
   // FICHA TÉCNICA 360° / CONSOLA DE CONTROL TOTAL DE LA MULA
   const [activeTruckDetail, setActiveTruckDetail] = useState(null);
   const [editLaborCost, setEditLaborCost] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [editBeforeUrl, setEditBeforeUrl] = useState("");
+  const [editAfterUrl, setEditAfterUrl] = useState("");
 
   // Formulario para agregar repuesto desde la ficha
   const [assignForm, setAssignForm] = useState({
@@ -60,6 +66,11 @@ export default function WorkshopPage() {
   const [feedback, setFeedback] = useState(null);
 
   const showNotification = (msg, type = "success") => {
+    if (type === "error") {
+      showErrorToast(msg);
+    } else {
+      showSuccessToast(msg);
+    }
     setFeedback({ msg, type });
     setTimeout(() => setFeedback(null), 4000);
   };
@@ -103,13 +114,15 @@ export default function WorkshopPage() {
     setActiveTruckDetail(order);
     setEditLaborCost(String(order.costo_mano_obra || 2000000));
     setEditNotes(order.descripcion || "");
+    setEditBeforeUrl(order.before_url || "");
+    setEditAfterUrl(order.after_url || "");
     setAssignForm({
       productId: products[0]?.id || "",
       cantidad: 1,
     });
   };
 
-  // Guardar Cambios en la Ficha (Mano de obra, notas)
+  // Guardar Cambios en la Ficha (Mano de obra, notas, fotos Antes/Después)
   const handleSaveTruckDetail = async () => {
     if (!activeTruckDetail) return;
 
@@ -120,17 +133,21 @@ export default function WorkshopPage() {
         body: JSON.stringify({
           costo_mano_obra: parseFloat(editLaborCost) || 0,
           descripcion: editNotes,
+          before_url: editBeforeUrl,
+          after_url: editAfterUrl,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        showNotification("Cambios guardados en la orden");
+        showSuccessToast("¡Orden de trabajo y fotos actualizadas con éxito!");
         setActiveTruckDetail(data.order);
         loadData();
+      } else {
+        showErrorToast(data.message || "Error al guardar cambios");
       }
     } catch (err) {
-      showNotification("Error al guardar cambios", "error");
+      showErrorToast("Error al guardar cambios");
     }
   };
 
@@ -333,6 +350,8 @@ export default function WorkshopPage() {
   };
 
   const getTruckImage = (order) => {
+    if (order.after_url) return order.after_url;
+    if (order.before_url) return order.before_url;
     if (order.placa === "WTL-892") return "/images/showroom/kenworth_after.jpg";
     if (order.placa === "SZZ-514") return "/images/showroom/mack_truck_custom.jpg";
     if (order.placa === "UFT-621") return "/images/showroom/peterbilt_truck_custom.jpg";
@@ -1599,6 +1618,65 @@ export default function WorkshopPage() {
                   </form>
                 </div>
 
+                {/* 📸 Transformación Artesanal: Antes & Después con Vista Previa Interactiva */}
+                <div
+                  style={{
+                    background: "rgba(10, 12, 16, 0.7)",
+                    padding: "1.1rem",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(245, 158, 11, 0.25)",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                    <div style={{ fontSize: "0.85rem", fontWeight: "900", color: "#f59e0b", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span>📸</span>
+                      <span>Transformación Artesanal: Antes & Después</span>
+                    </div>
+                    <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>
+                      Sube fotos con vista previa instantánea y compara en vivo
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.85rem", marginBottom: "0.85rem" }}>
+                    <ImageUploader
+                      label="Foto ANTES (Ingreso al Taller)"
+                      currentUrl={editBeforeUrl}
+                      category="before_after"
+                      aspectRatio="16/9"
+                      helperText="Foto de llegada o desarme inicial"
+                      onImageChange={(url) => setEditBeforeUrl(url)}
+                    />
+                    <ImageUploader
+                      label="Foto DESPUÉS (Personalización Terminada)"
+                      currentUrl={editAfterUrl}
+                      category="before_after"
+                      aspectRatio="16/9"
+                      helperText="Foto final con acero, cromo y pintura"
+                      onImageChange={(url) => setEditAfterUrl(url)}
+                    />
+                  </div>
+
+                  {/* Comparador Interactivo en Vivo */}
+                  {(editBeforeUrl || editAfterUrl) && (
+                    <div style={{ borderTop: "1px dashed rgba(255,255,255,0.1)", paddingTop: "0.85rem", marginTop: "0.5rem" }}>
+                      <div style={{ fontSize: "0.76rem", fontWeight: "800", color: "#38bdf8", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                        <span>↔️</span>
+                        <span>Comparador Interactivo en Vivo (Desliza para ver la transformación):</span>
+                      </div>
+                      <div style={{ borderRadius: "10px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", maxHeight: "280px" }}>
+                        <BeforeAfterSlider
+                          beforeImage={editBeforeUrl || "/images/showroom/kenworth_before.jpg"}
+                          afterImage={editAfterUrl || "/images/showroom/kenworth_after.jpg"}
+                          beforeLabel="ANTES"
+                          afterLabel="DESPUÉS"
+                          aspectRatio="16/9"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Mano de Obra, Notas & Costo Total */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                   <div>
@@ -1894,6 +1972,17 @@ export default function WorkshopPage() {
                     color: "#fff",
                     resize: "none",
                   }}
+                />
+              </div>
+
+              <div>
+                <ImageUploader
+                  label="Foto de Ingreso al Taller (Antes) - Opcional"
+                  currentUrl={createForm.before_url}
+                  category="before_after"
+                  aspectRatio="16/9"
+                  helperText="Sube foto del estado en que llega la mula al taller"
+                  onImageChange={(url) => setCreateForm((prev) => ({ ...prev, before_url: url }))}
                 />
               </div>
 

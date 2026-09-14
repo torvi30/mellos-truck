@@ -10,6 +10,7 @@ let memoryProducts = [
     stock: 4,
     min_stock_alert: 2,
     categoria: "Acero Inoxidable",
+    imagen_url: "/images/showroom/detail_bumper_chrome.jpg",
     created_at: new Date().toISOString(),
   },
   {
@@ -20,6 +21,7 @@ let memoryProducts = [
     stock: 6,
     min_stock_alert: 3,
     categoria: "Acero Inoxidable",
+    imagen_url: "/images/showroom/detail_visera_cornetas.jpg",
     created_at: new Date().toISOString(),
   },
   {
@@ -30,6 +32,7 @@ let memoryProducts = [
     stock: 2,
     min_stock_alert: 3, // ALERTA: stock <= min_stock_alert
     categoria: "Escapes y Cornetas",
+    imagen_url: "/images/showroom/detail_visera_cornetas.jpg",
     created_at: new Date().toISOString(),
   },
   {
@@ -40,6 +43,7 @@ let memoryProducts = [
     stock: 48,
     min_stock_alert: 15,
     categoria: "Iluminación",
+    imagen_url: "/images/showroom/mack_truck_custom.jpg",
     created_at: new Date().toISOString(),
   },
   {
@@ -50,6 +54,7 @@ let memoryProducts = [
     stock: 8,
     min_stock_alert: 4,
     categoria: "Lujos",
+    imagen_url: "/images/showroom/detail_rines_spikes.jpg",
     created_at: new Date().toISOString(),
   },
   {
@@ -60,6 +65,7 @@ let memoryProducts = [
     stock: 15,
     min_stock_alert: 20, // ALERTA: stock <= min_stock_alert
     categoria: "Lujos",
+    imagen_url: "/images/showroom/chrome_wheels_spikes.jpg",
     created_at: new Date().toISOString(),
   },
 ];
@@ -118,7 +124,7 @@ export const getProducts = async (req, res) => {
  */
 export const createProduct = async (req, res) => {
   try {
-    const { nombre, sku, precio, stock, min_stock_alert, categoria } = req.body;
+    const { nombre, sku, precio, stock, min_stock_alert, categoria, imagen_url } = req.body;
 
     if (!nombre || !sku) {
       return res.status(400).json({ message: "Nombre y SKU son requeridos" });
@@ -132,6 +138,7 @@ export const createProduct = async (req, res) => {
       stock: parseInt(stock, 10) || 0,
       min_stock_alert: parseInt(min_stock_alert, 10) || 5,
       categoria: categoria || "Lujos",
+      imagen_url: imagen_url || "/images/showroom/detail_bumper_chrome.jpg",
       created_at: new Date().toISOString(),
     };
 
@@ -140,7 +147,7 @@ export const createProduct = async (req, res) => {
     // Guardar en MySQL si está disponible
     try {
       await pool.query(
-        `INSERT INTO products (nombre, sku, precio, stock, min_stock_alert, categoria)
+        `INSERT INTO products (nombre, sku, precio, stock, min_stock_alert, categoria, imagen_url)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
           newProduct.nombre,
@@ -149,6 +156,7 @@ export const createProduct = async (req, res) => {
           newProduct.stock,
           newProduct.min_stock_alert,
           newProduct.categoria,
+          newProduct.imagen_url,
         ]
       );
     } catch (dbErr) {
@@ -157,11 +165,43 @@ export const createProduct = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Producto agregado correctamente",
+      message: "Producto agregado correctamente al Container",
       product: newProduct,
     });
   } catch (error) {
     res.status(500).json({ message: "Error al crear producto", error: error.message });
+  }
+};
+
+/**
+ * Actualizar producto en inventario
+ * PUT /api/products/:id
+ */
+export const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, sku, precio, stock, min_stock_alert, categoria, imagen_url } = req.body;
+
+    const product = memoryProducts.find((p) => p.id === parseInt(id, 10));
+    if (!product) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
+    if (nombre) product.nombre = nombre;
+    if (sku) product.sku = sku.toUpperCase().trim();
+    if (precio !== undefined) product.precio = parseFloat(precio) || 0;
+    if (stock !== undefined) product.stock = parseInt(stock, 10) || 0;
+    if (min_stock_alert !== undefined) product.min_stock_alert = parseInt(min_stock_alert, 10) || 5;
+    if (categoria) product.categoria = categoria;
+    if (imagen_url) product.imagen_url = imagen_url;
+
+    res.json({
+      success: true,
+      message: "Producto actualizado correctamente",
+      product,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error actualizando producto", error: error.message });
   }
 };
 

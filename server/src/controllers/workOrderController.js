@@ -33,6 +33,8 @@ let memoryWorkOrders = [
     estado: "Entregado",
     slug: "Kenworth-T800-Placa-WTL892",
     magic_token: "tok_kw_wtl892_live",
+    before_url: "/images/showroom/kenworth_before.jpg",
+    after_url: "/images/showroom/kenworth_after.jpg",
     fecha_ingreso: new Date(Date.now() - 7 * 86400000).toISOString(),
     fecha_estimada: new Date().toISOString(),
     costo_mano_obra: 2500000,
@@ -80,6 +82,8 @@ let memoryWorkOrders = [
     estado: "Taller",
     slug: "Mack-Vision-Placa-SZZ514",
     magic_token: "tok_mack_szz514_live",
+    before_url: "/images/showroom/kenworth_before.jpg",
+    after_url: "/images/showroom/mack_truck_custom.jpg",
     fecha_ingreso: new Date(Date.now() - 3 * 86400000).toISOString(),
     fecha_estimada: new Date(Date.now() + 4 * 86400000).toISOString(),
     costo_mano_obra: 1800000,
@@ -118,6 +122,8 @@ let memoryWorkOrders = [
     estado: "Ingreso",
     slug: null,
     magic_token: null,
+    before_url: "/images/showroom/kenworth_before.jpg",
+    after_url: "/images/showroom/detail_bumper_chrome.jpg",
     fecha_ingreso: new Date().toISOString(),
     fecha_estimada: new Date(Date.now() + 8 * 86400000).toISOString(),
     costo_mano_obra: 1200000,
@@ -137,6 +143,8 @@ let memoryWorkOrders = [
     estado: "Pintura",
     slug: null,
     magic_token: null,
+    before_url: "/images/showroom/kenworth_before.jpg",
+    after_url: "/images/showroom/peterbilt_truck_custom.jpg",
     fecha_ingreso: new Date(Date.now() - 4 * 86400000).toISOString(),
     fecha_estimada: new Date(Date.now() + 2 * 86400000).toISOString(),
     costo_mano_obra: 3200000,
@@ -166,6 +174,8 @@ let memoryWorkOrders = [
     estado: "Terminado",
     slug: "Kenworth-W900-Placa-XVZ409",
     magic_token: "tok_kw_xvz409_live",
+    before_url: "/images/showroom/kenworth_before.jpg",
+    after_url: "/images/showroom/detail_visera_cornetas.jpg",
     fecha_ingreso: new Date(Date.now() - 6 * 86400000).toISOString(),
     fecha_estimada: new Date().toISOString(),
     costo_mano_obra: 2900000,
@@ -287,6 +297,8 @@ export const createWorkOrder = async (req, res) => {
       descripcion,
       costo_mano_obra,
       fecha_estimada,
+      before_url,
+      after_url,
     } = req.body;
 
     if (!cliente || !placa || !marca) {
@@ -307,6 +319,8 @@ export const createWorkOrder = async (req, res) => {
       estado: "Ingreso",
       slug: null,
       magic_token: null,
+      before_url: before_url || "/images/showroom/kenworth_before.jpg",
+      after_url: after_url || null,
       fecha_ingreso: new Date().toISOString(),
       fecha_estimada: fecha_estimada || new Date(Date.now() + 7 * 86400000).toISOString(),
       costo_mano_obra: parseFloat(costo_mano_obra) || 0,
@@ -589,7 +603,7 @@ export const deleteWorkOrder = async (req, res) => {
 export const updateWorkOrder = async (req, res) => {
   try {
     const { id } = req.params;
-    const { costo_mano_obra, descripcion, color, fecha_estimada } = req.body;
+    const { costo_mano_obra, descripcion, color, fecha_estimada, before_url, after_url } = req.body;
 
     const order = memoryWorkOrders.find((o) => o.id === parseInt(id, 10));
     if (!order) {
@@ -600,6 +614,17 @@ export const updateWorkOrder = async (req, res) => {
     if (descripcion !== undefined) order.descripcion = descripcion;
     if (color !== undefined) order.color = color;
     if (fecha_estimada !== undefined) order.fecha_estimada = fecha_estimada;
+    if (before_url !== undefined) order.before_url = before_url;
+    if (after_url !== undefined) order.after_url = after_url;
+
+    // Sincronizar con el proyecto de showroom si existe
+    if (order.slug) {
+      const showProj = memoryShowroomProjects.find((p) => p.slug === order.slug || p.plate === order.placa);
+      if (showProj) {
+        if (before_url) showProj.before_url = before_url;
+        if (after_url) showProj.after_url = after_url;
+      }
+    }
 
     recalculateTotals(order);
 

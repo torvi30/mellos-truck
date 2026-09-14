@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import ImageUploader from "../components/ImageUploader";
+import { showSuccessToast, showErrorToast } from "../utils/alerts";
 
 export default function MagicLinksStudioPage() {
   const [projects, setProjects] = useState([]);
@@ -57,6 +59,7 @@ export default function MagicLinksStudioPage() {
       });
 
       if (res.ok) {
+        showSuccessToast("¡Magic Link generado y publicado con éxito!");
         await loadProjects();
         setShowModal(false);
         setForm({
@@ -72,15 +75,19 @@ export default function MagicLinksStudioPage() {
           after_url: "/images/showroom/kenworth_after.jpg",
           video_url: "/api/stream/video/cinematic_kenworth_demo.mp4",
         });
+      } else {
+        const errData = await res.json();
+        showErrorToast(errData.message || "Error al emitir Magic Link");
       }
     } catch (err) {
-      console.error("Error creando proyecto:", err);
+      showErrorToast("Error al conectar con el servidor");
     }
   };
 
   const handleCopy = (url, slug) => {
     navigator.clipboard.writeText(url);
     setCopiedSlug(slug);
+    showSuccessToast("¡Enlace copiado al portapapeles!");
     setTimeout(() => setCopiedSlug(null), 2500);
   };
 
@@ -267,6 +274,25 @@ export default function MagicLinksStudioPage() {
                   placeholder="Detalla bomper, visera, luces LED, rines instalados..."
                   value={form.description}
                   onChange={handleChange}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", margin: "0.5rem 0" }}>
+                <ImageUploader
+                  label="Foto ANTES (Llegada al Taller)"
+                  currentUrl={form.before_url}
+                  category="before_after"
+                  aspectRatio="16/9"
+                  helperText="Estado original antes del trabajo"
+                  onImageChange={(url) => setForm((prev) => ({ ...prev, before_url: url }))}
+                />
+                <ImageUploader
+                  label="Foto DESPUÉS (Personalización Terminada)"
+                  currentUrl={form.after_url}
+                  category="before_after"
+                  aspectRatio="16/9"
+                  helperText="Mula terminada para exhibición"
+                  onImageChange={(url) => setForm((prev) => ({ ...prev, after_url: url }))}
                 />
               </div>
 

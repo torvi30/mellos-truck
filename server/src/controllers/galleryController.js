@@ -58,14 +58,16 @@ export const uploadImage = async (req, res) => {
     }
 
     const category = req.body?.category || "catalog";
+    const publicUrl = `http://localhost:4000/uploads/images/${category}/${req.file.filename}`;
 
     res.status(201).json({
+      success: true,
       message: "Imagen subida correctamente",
       file: {
         name: req.file.filename,
-        url: `http://localhost:4000/uploads/${req.file.path.replace(/\\/g, "/")}`,
+        url: publicUrl,
         type: "image",
-        path: req.file.path.replace(/\\/g, "/"),
+        path: `images/${category}/${req.file.filename}`,
         category,
       },
     });

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import BeforeAfterSlider from "../components/BeforeAfterSlider";
+import { showSuccessToast, showErrorToast } from "../utils/alerts";
 
 export default function PublicHome() {
   const [form, setForm] = useState({
@@ -14,6 +15,18 @@ export default function PublicHome() {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [liveProducts, setLiveProducts] = useState([]);
+
+  useEffect(() => {
+    fetch("http://localhost:4000/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.products && data.products.length > 0) {
+          setLiveProducts(data.products);
+        }
+      })
+      .catch((err) => console.warn("Usando catálogo estático destacado:", err));
+  }, []);
 
   const services = [
     {
@@ -44,20 +57,33 @@ export default function PublicHome() {
       category: "Estructura & Cromo",
       image: "/images/showroom/detail_bumper_chrome.jpg",
       description: "Acero inoxidable 304 calibre pesado, corte láser de precisión, luces LED ámbar impermeables IP68 y acabado espejo.",
+      price: 3500000,
     },
     {
       title: "Visera Americana Drop Visor & Doble Corneta",
       category: "Cabina & Lujo",
       image: "/images/showroom/detail_visera_cornetas.jpg",
       description: "Visera americana con ajuste aerodinámico para Kenworth, Mack e International, con base para cornetas de alta resonancia.",
+      price: 1800000,
     },
     {
       title: "Rines Pulidos Alcoa con Spikes Cromados",
       category: "Ruedas & Ejes",
       image: "/images/showroom/detail_rines_spikes.jpg",
       description: "Rines de aluminio forjado pulido espejo, copas cromadas y espárragos en punta para un look agresivo y respetado en ruta.",
+      price: 4200000,
     },
   ];
+
+  const displayProducts = liveProducts.length > 0
+    ? liveProducts.map((p) => ({
+        title: p.nombre,
+        category: p.categoria || "Accesorio",
+        image: p.imagen_url || "/images/showroom/detail_bumper_chrome.jpg",
+        description: p.descripcion || `Stock disponible: ${p.stock} unidades en el Container.`,
+        price: p.precio_venta,
+      }))
+    : featuredProducts;
 
   const handleChange = (e) => {
     setForm({
@@ -69,6 +95,7 @@ export default function PublicHome() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.phone) {
+      showErrorToast("Por favor ingresa tu nombre y número de WhatsApp");
       setMessage("⚠️ Por favor ingresa al menos tu nombre y número de WhatsApp.");
       return;
     }
@@ -92,8 +119,7 @@ export default function PublicHome() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log("Cotización registrada:", data);
+        showSuccessToast("¡Solicitud enviada! Conectando con asesor...");
       }
     } catch (err) {
       console.warn("Registrando localmente:", err);
@@ -384,7 +410,7 @@ export default function PublicHome() {
           </div>
 
           <div className="products-showcase-grid">
-            {featuredProducts.map((prod, index) => (
+            {displayProducts.map((prod, index) => (
               <div className="product-showcase-card" key={index}>
                 <div className="product-img-wrapper">
                   <img src={prod.image} alt={prod.title} loading="lazy" decoding="async" />
@@ -392,16 +418,21 @@ export default function PublicHome() {
                 </div>
                 <div className="product-content">
                   <h3>{prod.title}</h3>
+                  {prod.price && (
+                    <div style={{ color: "#f59e0b", fontWeight: "900", fontSize: "1.1rem", marginBottom: "0.4rem" }}>
+                      ${parseFloat(prod.price).toLocaleString("es-CO")} COP
+                    </div>
+                  )}
                   <p>{prod.description}</p>
                   <a
                     href={`https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20estoy%20interesado%20en%20el%20producto:%20${encodeURIComponent(
                       prod.title
-                    )}`}
+                    )}${prod.price ? `%20(Precio:%20$${parseFloat(prod.price).toLocaleString("es-CO")}%20COP)` : ""}`}
                     target="_blank"
                     rel="noreferrer"
                     className="btn-product-inquire"
                   >
-                    💬 Consultar Precio en WhatsApp
+                    💬 Consultar en WhatsApp
                   </a>
                 </div>
               </div>
