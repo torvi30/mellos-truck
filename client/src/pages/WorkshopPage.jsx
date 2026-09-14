@@ -24,6 +24,7 @@ export default function WorkshopPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [mobileStageFilter, setMobileStageFilter] = useState("all");
 
   // Modal Ingresar Mula
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -443,24 +444,61 @@ export default function WorkshopPage() {
         </div>
       </header>
 
+      {/* SELECTOR RÁPIDO DE ETAPA EN MÓVIL (< 900px) */}
+      <div className="workshop-mobile-filter">
+        <button
+          onClick={() => setMobileStageFilter("all")}
+          style={{
+            padding: "0.4rem 0.85rem",
+            borderRadius: "20px",
+            border: mobileStageFilter === "all" ? "1px solid #f59e0b" : "1px solid rgba(255,255,255,0.1)",
+            background: mobileStageFilter === "all" ? "rgba(245, 158, 11, 0.2)" : "rgba(255,255,255,0.05)",
+            color: mobileStageFilter === "all" ? "#f59e0b" : "#94a3b8",
+            fontSize: "0.75rem",
+            fontWeight: "800",
+            whiteSpace: "nowrap",
+            cursor: "pointer",
+          }}
+        >
+          Todas ({orders.length})
+        </button>
+        {STAGES.map((stg) => {
+          const count = orders.filter((o) => o.estado === stg.id).length;
+          const isSelected = mobileStageFilter === stg.id;
+          return (
+            <button
+              key={stg.id}
+              onClick={() => setMobileStageFilter(isSelected ? "all" : stg.id)}
+              style={{
+                padding: "0.4rem 0.85rem",
+                borderRadius: "20px",
+                border: isSelected ? `1px solid ${stg.color}` : "1px solid rgba(255,255,255,0.1)",
+                background: isSelected ? `${stg.color}25` : "rgba(255,255,255,0.05)",
+                color: isSelected ? stg.color : "#94a3b8",
+                fontSize: "0.75rem",
+                fontWeight: "800",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+              }}
+            >
+              <span>{stg.icon}</span>
+              <span>{stg.title} ({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* KANBAN BOARD ESCALABLE CON TARJETAS COMPACTAS (Haz clic para abrir Ficha 360°) */}
       {loading ? (
         <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>
           Cargando naves en taller...
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(5, minmax(280px, 1fr))",
-            gap: "1.1rem",
-            flex: 1,
-            overflowX: "auto",
-            overflowY: "hidden",
-            paddingBottom: "0.6rem",
-          }}
-        >
-          {STAGES.map((stage) => {
+        <div className="workshop-kanban-grid">
+          {STAGES.filter((stg) => mobileStageFilter === "all" || mobileStageFilter === stg.id).map((stage) => {
             const stageOrders = filteredOrders.filter((o) => o.estado === stage.id);
 
             return (
@@ -681,25 +719,12 @@ export default function WorkshopPage() {
             padding: "1.2rem",
           }}
         >
-          <div
-            style={{
-              background: "#151720",
-              border: "1px solid rgba(245, 158, 11, 0.35)",
-              borderRadius: "18px",
-              width: "100%",
-              maxWidth: "760px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              boxShadow: "0 25px 70px rgba(0,0,0,0.9)",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
+          <div className="cockpit-modal-container">
             {/* 1. Header Visual con Fotografía de la Mula */}
             <div
               style={{
                 position: "relative",
-                height: "170px",
+                height: "155px",
                 width: "100%",
                 overflow: "hidden",
                 borderTopLeftRadius: "18px",
@@ -713,14 +738,14 @@ export default function WorkshopPage() {
                   width: "100%",
                   height: "100%",
                   objectFit: "cover",
-                  filter: "brightness(0.8) contrast(1.1)",
+                  filter: "brightness(0.75) contrast(1.15)",
                 }}
               />
               <div
                 style={{
                   position: "absolute",
                   inset: 0,
-                  background: "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(21, 23, 32, 0.98) 100%)",
+                  background: "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(21, 23, 32, 0.96) 100%)",
                 }}
               ></div>
 
@@ -731,17 +756,18 @@ export default function WorkshopPage() {
                   position: "absolute",
                   top: "14px",
                   right: "14px",
-                  background: "rgba(0,0,0,0.7)",
-                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: "rgba(0,0,0,0.75)",
+                  border: "1px solid rgba(255,255,255,0.25)",
                   color: "#fff",
                   borderRadius: "50%",
-                  width: "32px",
-                  height: "32px",
+                  width: "34px",
+                  height: "34px",
                   cursor: "pointer",
-                  fontSize: "1rem",
+                  fontSize: "1.1rem",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  zIndex: 2,
                 }}
               >
                 ✕
@@ -751,27 +777,29 @@ export default function WorkshopPage() {
               <div
                 style={{
                   position: "absolute",
-                  bottom: "16px",
-                  left: "20px",
-                  right: "20px",
+                  bottom: "12px",
+                  left: "18px",
+                  right: "18px",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "flex-end",
+                  flexWrap: "wrap",
+                  gap: "0.8rem",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.9rem" }}>
                   {/* Placa 3D */}
                   <div
                     style={{
                       background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
                       color: "#000",
                       fontWeight: "900",
-                      fontSize: "1.1rem",
+                      fontSize: "1.05rem",
                       letterSpacing: "0.15em",
-                      padding: "0.25rem 0.8rem",
+                      padding: "0.25rem 0.75rem",
                       borderRadius: "6px",
                       border: "2px solid #000",
-                      boxShadow: "0 4px 10px rgba(0,0,0,0.8)",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.8)",
                       textAlign: "center",
                     }}
                   >
@@ -782,16 +810,16 @@ export default function WorkshopPage() {
                   </div>
 
                   <div>
-                    <h2 style={{ margin: 0, fontSize: "1.4rem", fontWeight: "900", color: "#f8fafc" }}>
+                    <h2 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "900", color: "#f8fafc" }}>
                       {getCleanTruckTitle(activeTruckDetail)}
                     </h2>
-                    <div style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "2px" }}>
+                    <div style={{ fontSize: "0.82rem", color: "#94a3b8", marginTop: "2px" }}>
                       👤 {activeTruckDetail.cliente} {activeTruckDetail.telefono && `• 📞 ${activeTruckDetail.telefono}`}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
                   {activeTruckDetail.estado === "Entregado" ? (
                     <div
                       style={{
@@ -837,355 +865,366 @@ export default function WorkshopPage() {
               </div>
             </div>
 
-            {/* 2. Cuerpo de la Ficha 360° */}
-            <div style={{ padding: "1.8rem", display: "flex", flexDirection: "column", gap: "1.4rem" }}>
-              {/* Stepper de Fases del Taller (Permite mover la mula con 1 clic) */}
-              <div
-                style={{
-                  background: "rgba(10, 12, 16, 0.7)",
-                  padding: "1rem",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.06)",
-                }}
-              >
-                <div style={{ fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.6rem" }}>
-                  Fase Actual en el Taller: <span style={{ color: "#f59e0b" }}>{activeTruckDetail.estado}</span> (Haz clic para cambiar fase)
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.5rem" }}>
-                  {STAGES.map((stg) => {
-                    const isCurrent = activeTruckDetail.estado === stg.id;
-                    return (
-                      <button
-                        key={stg.id}
-                        onClick={() => handleMoveStage(activeTruckDetail.id, stg.id)}
-                        style={{
-                          padding: "0.6rem 0.4rem",
-                          borderRadius: "8px",
-                          border: isCurrent ? `2px solid ${stg.color}` : "1px solid rgba(255,255,255,0.08)",
-                          background: isCurrent ? `${stg.color}25` : "rgba(255,255,255,0.03)",
-                          color: isCurrent ? stg.color : "#94a3b8",
-                          fontWeight: isCurrent ? "900" : "600",
-                          fontSize: "0.78rem",
-                          cursor: "pointer",
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        <span style={{ fontSize: "1rem" }}>{stg.icon}</span>
-                        <span>{stg.title}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Enlace Magic Link & WhatsApp si está Terminado o Entregado */}
-              {(activeTruckDetail.estado === "Terminado" || activeTruckDetail.estado === "Entregado") && (
+            {/* 2. Cuerpo de la Ficha 360° en 2 Columnas Responsivas */}
+            <div className="cockpit-grid-layout">
+              {/* COLUMNA IZQUIERDA: Fases del Taller, Showroom & Piso */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {/* Stepper de Fases */}
                 <div
                   style={{
-                    background: "rgba(16, 185, 129, 0.1)",
-                    border: "1px solid rgba(16, 185, 129, 0.35)",
-                    borderRadius: "12px",
+                    background: "rgba(10, 12, 16, 0.7)",
                     padding: "1rem",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: "1rem",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(255, 255, 255, 0.06)",
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: "0.95rem", fontWeight: "900", color: "#34d399" }}>
-                      ⚡ Showroom Cinematográfico 4K Activo
-                    </div>
-                    <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "2px" }}>
-                      Esta nave ya tiene su propia vitrina con slider interactivo y video de dron.
-                    </div>
+                  <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.75rem" }}>
+                    Fase en Taller: <span style={{ color: "#f59e0b" }}>{activeTruckDetail.estado}</span>
                   </div>
 
-                  <div style={{ display: "flex", gap: "0.6rem" }}>
-                    {activeTruckDetail.slug && (
-                      <Link
-                        to={`/galeria/${activeTruckDetail.slug}`}
-                        target="_blank"
-                        style={{
-                          padding: "0.6rem 1rem",
-                          background: "#10b981",
-                          color: "#000",
-                          borderRadius: "8px",
-                          fontWeight: "900",
-                          fontSize: "0.85rem",
-                          textDecoration: "none",
-                        }}
-                      >
-                        👁️ Ver Showroom 4K
-                      </Link>
-                    )}
-
-                    {activeTruckDetail.whatsappShareUrl && (
-                      <a
-                        href={activeTruckDetail.whatsappShareUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          padding: "0.6rem 1rem",
-                          background: "#22c55e",
-                          color: "#000",
-                          borderRadius: "8px",
-                          fontWeight: "900",
-                          fontSize: "0.85rem",
-                          textDecoration: "none",
-                        }}
-                      >
-                        📱 Compartir WhatsApp
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Gestión de Repuestos del Container */}
-              <div
-                style={{
-                  background: "rgba(10, 12, 16, 0.7)",
-                  padding: "1.2rem",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.06)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
-                  <div style={{ fontSize: "0.85rem", fontWeight: "800", color: "#38bdf8", textTransform: "uppercase" }}>
-                    📦 Repuestos & Lujos del Container Asignados ({activeTruckDetail.items ? activeTruckDetail.items.length : 0})
-                  </div>
-                  <div style={{ fontSize: "0.85rem", fontWeight: "900", color: "#38bdf8" }}>
-                    Total Piezas: ${(activeTruckDetail.costo_repuestos || 0).toLocaleString("es-CO")} COP
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                    {STAGES.map((stg) => {
+                      const isCurrent = activeTruckDetail.estado === stg.id;
+                      return (
+                        <button
+                          key={stg.id}
+                          onClick={() => handleMoveStage(activeTruckDetail.id, stg.id)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "0.6rem 0.8rem",
+                            borderRadius: "8px",
+                            border: isCurrent ? `2px solid ${stg.color}` : "1px solid rgba(255,255,255,0.06)",
+                            background: isCurrent ? `${stg.color}22` : "rgba(255,255,255,0.02)",
+                            color: isCurrent ? "#fff" : "#94a3b8",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                            <span style={{ fontSize: "1.1rem" }}>{stg.icon}</span>
+                            <div style={{ textAlign: "left" }}>
+                              <div style={{ fontSize: "0.82rem", fontWeight: isCurrent ? "900" : "700", color: isCurrent ? stg.color : "#cbd5e1" }}>
+                                {stg.title}
+                              </div>
+                              <div style={{ fontSize: "0.68rem", color: "#64748b" }}>{stg.subtitle}</div>
+                            </div>
+                          </div>
+                          {isCurrent && <span style={{ color: stg.color, fontSize: "0.95rem", fontWeight: "900" }}>✓</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Lista de Repuestos */}
-                {(!activeTruckDetail.items || activeTruckDetail.items.length === 0) ? (
-                  <div style={{ padding: "1.2rem", textAlign: "center", background: "rgba(0,0,0,0.3)", borderRadius: "8px", color: "#64748b", fontSize: "0.85rem" }}>
-                    No se han asignado piezas del inventario a esta mula todavía.
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
-                    {activeTruckDetail.items.map((item) => (
-                      <div
-                        key={item.id}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "0.6rem 0.9rem",
-                          background: "rgba(255,255,255,0.03)",
-                          borderRadius: "8px",
-                          border: "1px solid rgba(255,255,255,0.05)",
-                          fontSize: "0.85rem",
-                        }}
-                      >
-                        <div>
-                          <span style={{ color: "#f59e0b", fontWeight: "900" }}>{item.cantidad}x</span>{" "}
-                          <span style={{ color: "#f8fafc", fontWeight: "600" }}>{item.nombre}</span>
-                        </div>
-
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-                          <span style={{ color: "#38bdf8", fontWeight: "800" }}>
-                            ${(item.subtotal || 0).toLocaleString("es-CO")}
-                          </span>
-                          <button
-                            onClick={() => handleRemoveItem(activeTruckDetail.id, item.id)}
-                            title="Devolver al Container"
-                            style={{
-                              background: "rgba(239, 68, 68, 0.15)",
-                              border: "1px solid rgba(239, 68, 68, 0.3)",
-                              color: "#f87171",
-                              borderRadius: "4px",
-                              cursor: "pointer",
-                              padding: "0.2rem 0.5rem",
-                              fontSize: "0.75rem",
-                              fontWeight: "800",
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </div>
+                {/* Showroom 4K & WhatsApp si está Terminado o Entregado */}
+                {(activeTruckDetail.estado === "Terminado" || activeTruckDetail.estado === "Entregado") && (
+                  <div
+                    style={{
+                      background: "rgba(16, 185, 129, 0.1)",
+                      border: "1px solid rgba(16, 185, 129, 0.35)",
+                      borderRadius: "12px",
+                      padding: "1rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: "0.88rem", fontWeight: "900", color: "#34d399" }}>
+                        ⚡ Showroom Cinematográfico 4K Activo
                       </div>
-                    ))}
+                      <div style={{ fontSize: "0.76rem", color: "#94a3b8", marginTop: "2px" }}>
+                        Vitrina interactiva y difusión listas para compartir.
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      {activeTruckDetail.slug && (
+                        <Link
+                          to={`/galeria/${activeTruckDetail.slug}`}
+                          target="_blank"
+                          style={{
+                            flex: 1,
+                            textAlign: "center",
+                            padding: "0.55rem 0.8rem",
+                            background: "#10b981",
+                            color: "#000",
+                            borderRadius: "8px",
+                            fontWeight: "900",
+                            fontSize: "0.8rem",
+                            textDecoration: "none",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          👁️ Showroom 4K
+                        </Link>
+                      )}
+
+                      {activeTruckDetail.whatsappShareUrl && (
+                        <a
+                          href={activeTruckDetail.whatsappShareUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            flex: 1,
+                            textAlign: "center",
+                            padding: "0.55rem 0.8rem",
+                            background: "#22c55e",
+                            color: "#000",
+                            borderRadius: "8px",
+                            fontWeight: "900",
+                            fontSize: "0.8rem",
+                            textDecoration: "none",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          📱 WhatsApp
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* Formulario Rápido para Asignar Piezas */}
-                <form onSubmit={handleAssignItem} style={{ display: "flex", gap: "0.8rem", marginTop: "0.8rem" }}>
-                  <select
-                    value={assignForm.productId}
-                    onChange={(e) => setAssignForm({ ...assignForm, productId: e.target.value })}
-                    style={{
-                      flex: 1,
-                      padding: "0.65rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                      fontSize: "0.85rem",
-                    }}
-                  >
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id} disabled={p.stock <= 0}>
-                        {p.nombre} (Stock: {p.stock}) — ${p.precio.toLocaleString("es-CO")}
-                      </option>
-                    ))}
-                  </select>
-
-                  <input
-                    type="number"
-                    min="1"
-                    max={selectedProduct ? selectedProduct.stock : 99}
-                    value={assignForm.cantidad}
-                    onChange={(e) => setAssignForm({ ...assignForm, cantidad: e.target.value })}
-                    style={{
-                      width: "70px",
-                      padding: "0.65rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                      fontSize: "0.95rem",
-                      fontWeight: "800",
-                      textAlign: "center",
-                    }}
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={!selectedProduct || selectedProduct.stock < 1}
-                    style={{
-                      padding: "0.65rem 1.2rem",
-                      background: "linear-gradient(135deg, #0284c7, #0369a1)",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "8px",
-                      fontWeight: "900",
-                      fontSize: "0.85rem",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    + Asignar y Descontar
-                  </button>
-                </form>
-              </div>
-
-              {/* Mano de Obra, Notas & Costo Total */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "1.2rem",
-                }}
-              >
-                <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.4rem" }}>
-                    Mano de Obra ($ COP)
-                  </label>
-                  <input
-                    type="number"
-                    value={editLaborCost}
-                    onChange={(e) => setEditLaborCost(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#f8fafc",
-                      fontSize: "1rem",
-                      fontWeight: "900",
-                    }}
-                  />
-
-                  <div style={{ marginTop: "0.8rem", fontSize: "0.85rem", color: "#94a3b8" }}>
-                    Total Orden Acumulado:{" "}
-                    <strong style={{ color: "#f59e0b", fontSize: "1.1rem" }}>
-                      ${((parseFloat(editLaborCost) || 0) + (activeTruckDetail.costo_repuestos || 0)).toLocaleString("es-CO")} COP
-                    </strong>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.4rem" }}>
-                    Especificaciones / Notas de Pailería
-                  </label>
-                  <textarea
-                    rows="3"
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Detalles de pailería, medidas del bomper, cortes láser..."
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                      fontSize: "0.85rem",
-                      resize: "none",
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Botones Finales de la Consola */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
-                  paddingTop: "1.2rem",
-                }}
-              >
+                {/* Acciones Secundarias de Piso */}
                 <div style={{ display: "flex", gap: "0.6rem" }}>
                   <button
                     type="button"
                     onClick={() => window.print()}
                     style={{
-                      padding: "0.65rem 1.1rem",
+                      flex: 1,
+                      padding: "0.6rem 0.8rem",
                       background: "rgba(255,255,255,0.06)",
                       border: "1px solid rgba(255,255,255,0.12)",
                       color: "#cbd5e1",
                       borderRadius: "8px",
                       fontWeight: "700",
                       cursor: "pointer",
-                      fontSize: "0.82rem",
+                      fontSize: "0.78rem",
                     }}
                   >
-                    🖨️ Imprimir Ficha
+                    🖨️ Ficha Parabrisas
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleDeleteOrder(activeTruckDetail.id, activeTruckDetail.placa, (activeTruckDetail.items || []).length)}
                     style={{
-                      padding: "0.65rem 0.9rem",
+                      padding: "0.6rem 0.8rem",
                       background: "rgba(239, 68, 68, 0.08)",
                       border: "1px solid rgba(239, 68, 68, 0.25)",
                       color: "#f87171",
                       borderRadius: "8px",
                       fontWeight: "700",
                       cursor: "pointer",
-                      fontSize: "0.82rem",
+                      fontSize: "0.78rem",
                     }}
                     title="Cancelar o anular orden"
                   >
-                    🗑️ Anular Orden
+                    🗑️ Anular
                   </button>
                 </div>
+              </div>
 
-                <div style={{ display: "flex", gap: "0.8rem" }}>
+              {/* COLUMNA DERECHA: Repuestos del Container, Finanzas & Guardado */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {/* Gestión de Repuestos del Container */}
+                <div
+                  style={{
+                    background: "rgba(10, 12, 16, 0.7)",
+                    padding: "1.1rem",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(255, 255, 255, 0.06)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                    <div style={{ fontSize: "0.82rem", fontWeight: "800", color: "#38bdf8", textTransform: "uppercase" }}>
+                      📦 Repuestos Asignados ({activeTruckDetail.items ? activeTruckDetail.items.length : 0})
+                    </div>
+                    <div style={{ fontSize: "0.85rem", fontWeight: "900", color: "#38bdf8" }}>
+                      ${(activeTruckDetail.costo_repuestos || 0).toLocaleString("es-CO")} COP
+                    </div>
+                  </div>
+
+                  {/* Lista de Repuestos */}
+                  {(!activeTruckDetail.items || activeTruckDetail.items.length === 0) ? (
+                    <div style={{ padding: "0.9rem", textAlign: "center", background: "rgba(0,0,0,0.3)", borderRadius: "8px", color: "#64748b", fontSize: "0.82rem" }}>
+                      No se han asignado piezas del inventario a esta mula todavía.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem", maxHeight: "150px", overflowY: "auto", marginBottom: "0.8rem" }}>
+                      {activeTruckDetail.items.map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "0.5rem 0.8rem",
+                            background: "rgba(255,255,255,0.03)",
+                            borderRadius: "6px",
+                            border: "1px solid rgba(255,255,255,0.05)",
+                            fontSize: "0.82rem",
+                          }}
+                        >
+                          <div>
+                            <span style={{ color: "#f59e0b", fontWeight: "900" }}>{item.cantidad}x</span>{" "}
+                            <span style={{ color: "#f8fafc", fontWeight: "600" }}>{item.nombre}</span>
+                          </div>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                            <span style={{ color: "#38bdf8", fontWeight: "800" }}>
+                              ${(item.subtotal || 0).toLocaleString("es-CO")}
+                            </span>
+                            <button
+                              onClick={() => handleRemoveItem(activeTruckDetail.id, item.id)}
+                              title="Devolver al Container"
+                              style={{
+                                background: "rgba(239, 68, 68, 0.15)",
+                                border: "1px solid rgba(239, 68, 68, 0.3)",
+                                color: "#f87171",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                padding: "0.15rem 0.4rem",
+                                fontSize: "0.72rem",
+                                fontWeight: "800",
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Formulario Rápido para Asignar Piezas */}
+                  <form onSubmit={handleAssignItem} style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                    <select
+                      value={assignForm.productId}
+                      onChange={(e) => setAssignForm({ ...assignForm, productId: e.target.value })}
+                      style={{
+                        flex: 1,
+                        minWidth: "170px",
+                        padding: "0.6rem",
+                        borderRadius: "8px",
+                        background: "#0a0c10",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        color: "#fff",
+                        fontSize: "0.82rem",
+                      }}
+                    >
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id} disabled={p.stock <= 0}>
+                          {p.nombre} (Stock: {p.stock}) — ${p.precio.toLocaleString("es-CO")}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      type="number"
+                      min="1"
+                      max={selectedProduct ? selectedProduct.stock : 99}
+                      value={assignForm.cantidad}
+                      onChange={(e) => setAssignForm({ ...assignForm, cantidad: e.target.value })}
+                      style={{
+                        width: "60px",
+                        padding: "0.6rem",
+                        borderRadius: "8px",
+                        background: "#0a0c10",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        color: "#fff",
+                        fontSize: "0.9rem",
+                        fontWeight: "800",
+                        textAlign: "center",
+                      }}
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={!selectedProduct || selectedProduct.stock < 1}
+                      style={{
+                        padding: "0.6rem 1rem",
+                        background: "linear-gradient(135deg, #0284c7, #0369a1)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontWeight: "900",
+                        fontSize: "0.82rem",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      + Asignar
+                    </button>
+                  </form>
+                </div>
+
+                {/* Mano de Obra, Notas & Costo Total */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.35rem" }}>
+                      Mano de Obra ($ COP)
+                    </label>
+                    <input
+                      type="number"
+                      value={editLaborCost}
+                      onChange={(e) => setEditLaborCost(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "0.65rem",
+                        borderRadius: "8px",
+                        background: "#0a0c10",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        color: "#f8fafc",
+                        fontSize: "0.95rem",
+                        fontWeight: "900",
+                      }}
+                    />
+
+                    <div style={{ marginTop: "0.75rem", padding: "0.65rem", background: "rgba(245, 158, 11, 0.1)", borderRadius: "8px", border: "1px solid rgba(245, 158, 11, 0.25)" }}>
+                      <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: "700" }}>TOTAL ORDEN ACUMULADO:</div>
+                      <div style={{ color: "#f59e0b", fontSize: "1.15rem", fontWeight: "900" }}>
+                        ${((parseFloat(editLaborCost) || 0) + (activeTruckDetail.costo_repuestos || 0)).toLocaleString("es-CO")} COP
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.35rem" }}>
+                      Notas & Especificaciones
+                    </label>
+                    <textarea
+                      rows="4"
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      placeholder="Medidas, calibres, instrucciones de armado..."
+                      style={{
+                        width: "100%",
+                        padding: "0.65rem",
+                        borderRadius: "8px",
+                        background: "#0a0c10",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        color: "#fff",
+                        fontSize: "0.82rem",
+                        resize: "none",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Botones de Acción de la Consola */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "0.8rem",
+                    borderTop: "1px solid rgba(255,255,255,0.08)",
+                    paddingTop: "1rem",
+                    marginTop: "auto",
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => setActiveTruckDetail(null)}
@@ -1214,6 +1253,7 @@ export default function WorkshopPage() {
                       fontWeight: "900",
                       cursor: "pointer",
                       fontSize: "0.85rem",
+                      boxShadow: "0 4px 15px rgba(245, 158, 11, 0.4)",
                     }}
                   >
                     💾 Guardar Cambios

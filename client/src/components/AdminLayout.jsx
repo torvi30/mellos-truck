@@ -13,6 +13,66 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-shell">
+      {/* 1. Header Móvil (< 900px) */}
+      <header className="admin-mobile-topbar">
+        <Link to="/admin" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "8px" }}>
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              background: "linear-gradient(135deg, #f59e0b, #ef4444)",
+              borderRadius: "6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#000",
+              fontWeight: "900",
+              fontSize: "0.95rem",
+            }}
+          >
+            MT
+          </div>
+          <div>
+            <div style={{ fontSize: "0.92rem", fontWeight: "900", color: "#f8fafc" }}>MELLOS TRUCK</div>
+            <div style={{ fontSize: "0.65rem", color: "#f59e0b", fontWeight: "700" }}>PANEL TALLER</div>
+          </div>
+        </Link>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Link
+            to="/"
+            target="_blank"
+            style={{
+              padding: "5px 10px",
+              borderRadius: "6px",
+              background: "rgba(255,255,255,0.08)",
+              color: "#cbd5e1",
+              fontSize: "0.75rem",
+              fontWeight: "700",
+              textDecoration: "none",
+            }}
+          >
+            🌐 Web
+          </Link>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: "5px 10px",
+              borderRadius: "6px",
+              background: "rgba(239,68,68,0.15)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "#f87171",
+              fontSize: "0.75rem",
+              fontWeight: "700",
+              cursor: "pointer",
+            }}
+          >
+            Salir
+          </button>
+        </div>
+      </header>
+
+      {/* 2. Sidebar de Escritorio (> 900px) */}
       <aside className="admin-sidebar">
         <div className="admin-brand">
           <Link to="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "10px" }}>
@@ -209,9 +269,34 @@ export default function AdminLayout() {
         </div>
       </aside>
 
+      {/* 3. Contenido Principal */}
       <main className="admin-content">
         <Outlet />
       </main>
+
+      {/* 4. Barra de Navegación Inferior Móvil (< 900px) */}
+      <nav className="admin-mobile-bottombar">
+        <NavLink to="/admin" end className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
+          <span style={{ fontSize: "1.2rem" }}>📊</span>
+          <span>Dashboard</span>
+        </NavLink>
+        <NavLink to="/admin/workshop" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
+          <span style={{ fontSize: "1.2rem" }}>🛠️</span>
+          <span>Taller</span>
+        </NavLink>
+        <NavLink to="/admin/inventory" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
+          <span style={{ fontSize: "1.2rem" }}>📦</span>
+          <span>Container</span>
+        </NavLink>
+        <NavLink to="/admin/studio" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
+          <span style={{ fontSize: "1.2rem" }}>⚡</span>
+          <span>Showroom</span>
+        </NavLink>
+        <NavLink to="/admin/quotes" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
+          <span style={{ fontSize: "1.2rem" }}>💬</span>
+          <span>Cotizaciones</span>
+        </NavLink>
+      </nav>
     </div>
   );
 }
