@@ -1,5 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { storage } from "../firebase.js";
 import { showErrorToast, showSuccessToast } from "../utils/alerts";
+
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, "")}/api`
+  : "http://localhost:4000/api";
 
 export default function ImageUploader({
   label = "Foto",
@@ -57,15 +63,31 @@ export default function ImageUploader({
     setLocalBlob(objectUrl);
     setPreview(objectUrl);
 
-    // 2. Subida asíncrona al servidor Express
     setUploading(true);
     try {
+      // 2A. MODO CLOUD: Si Firebase Storage está activo, subir directamente a Google Cloud Storage
+      if (storage) {
+        const fileExt = file.name.split(".").pop();
+        const safeName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        const storageRef = ref(storage, `mellos_truck/${category}/${safeName}`);
+
+        const uploadTask = await uploadBytesResumable(storageRef, file);
+        const downloadUrl = await getDownloadURL(uploadTask.ref);
+
+        if (onImageChange) {
+          onImageChange(downloadUrl, file);
+        }
+        showSuccessToast("Imagen subida a la nube (Firebase Storage)");
+        return;
+      }
+
+      // 2B. MODO LOCAL: Subida al backend Express local
       const formData = new FormData();
       formData.append("file", file);
       formData.append("category", category);
 
       const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
-      const res = await fetch("http://localhost:4000/api/gallery/upload/image", {
+      const res = await fetch(`${API_BASE}/gallery/upload/image`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -78,15 +100,14 @@ export default function ImageUploader({
         if (onImageChange) {
           onImageChange(data.file.url, file);
         }
-        showSuccessToast("Imagen cargada con éxito");
+        showSuccessToast("Imagen cargada en servidor local");
       } else {
-        // Fallback: usar el objectUrl local si el backend estuviera desconectado
         if (onImageChange) {
           onImageChange(objectUrl, file);
         }
       }
     } catch (err) {
-      console.warn("Error subiendo imagen al backend, usando preview local:", err);
+      console.warn("Error subiendo imagen, usando preview local:", err);
       if (onImageChange) {
         onImageChange(objectUrl, file);
       }

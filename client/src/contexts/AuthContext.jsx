@@ -24,7 +24,19 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        if (currentUser) {
+          try {
+            const token = await currentUser.getIdToken();
+            localStorage.setItem("token", token);
+          } catch (_) {}
+        } else {
+          // Si no hay usuario y no es dev-mock, limpiar token
+          const currentToken = localStorage.getItem("token");
+          if (currentToken && !currentToken.startsWith("dev-mock-")) {
+            localStorage.removeItem("token");
+          }
+        }
         setUser(currentUser);
         setLoading(false);
       });
@@ -41,11 +53,15 @@ export function AuthProvider({ children }) {
       if (email === "admin@mellostrucks.com" && password === "123456789") {
         const mockUser = { email, displayName: "Administrador Mellos Truck" };
         setUser(mockUser);
+        localStorage.setItem("token", "dev-mock-token-mellostruck");
         return mockUser;
       }
       throw new Error("Credenciales inválidas en modo local.");
     }
     const credentials = await signInWithEmailAndPassword(auth, email, password);
+    const token = await credentials.user.getIdToken();
+    localStorage.setItem("token", token);
+    setUser(credentials.user);
     return credentials.user;
   };
 
@@ -57,6 +73,7 @@ export function AuthProvider({ children }) {
         console.warn(e);
       }
     }
+    localStorage.removeItem("token");
     setUser(null);
   };
 
