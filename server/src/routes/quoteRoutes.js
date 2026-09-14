@@ -10,7 +10,7 @@ import { protect } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.get("/", protect, getQuotes);
-router.post("/", protect, createQuote);
+router.post("/", createQuote);
 router.put("/:id/status", protect, updateQuoteStatus);
 router.post("/:id/convert", protect, convertQuoteToClient);
 

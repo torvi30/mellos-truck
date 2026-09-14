@@ -8,12 +8,17 @@ import VehiclesPage from "./pages/VehiclesPage.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
 import AdminLayout from "./components/AdminLayout.jsx";
 import GalleryPage from "./pages/GalleryPage.jsx";
+import ShowroomPage from "./pages/ShowroomPage.jsx";
+import MagicLinksStudioPage from "./pages/MagicLinksStudioPage.jsx";
+import InventoryPage from "./pages/InventoryPage.jsx";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<PublicHome />} />
+        <Route path="/galeria/:slug" element={<ShowroomPage />} />
+        <Route path="/showroom/:slug" element={<ShowroomPage />} />
         <Route path="/admin/login" element={<LoginPage />} />
 
         <Route
@@ -25,6 +30,9 @@ function App() {
           }
         >
           <Route index element={<DashboardPage />} />
+          <Route path="studio" element={<MagicLinksStudioPage />} />
+          <Route path="magic-links" element={<MagicLinksStudioPage />} />
+          <Route path="inventory" element={<InventoryPage />} />
           <Route path="quotes" element={<QuotesPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="vehicles" element={<VehiclesPage />} />

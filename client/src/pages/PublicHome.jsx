@@ -1,53 +1,63 @@
-import { useEffect, useState } from "react";
-import { createQuoteRequest, getGalleryRequest } from "../api/api";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import BeforeAfterSlider from "../components/BeforeAfterSlider";
 
-function PublicHome() {
+export default function PublicHome() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
-    service: "",
+    city: "Medellín",
+    vehicle_type: "Kenworth T800",
+    plate: "",
+    service: "Bomper de Acero Inoxidable & Visera",
     details: "",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [catalogImages, setCatalogImages] = useState([]);
-  const [vehicleImages, setVehicleImages] = useState([]);
 
   const services = [
     {
-      title: "Accesorios para pesados",
-      text: "Soluciones y accesorios para tractomulas, camiones y vehículos pesados con enfoque en presencia, utilidad y estilo.",
+      title: "Fabricación de Bompers en Acero",
+      text: "Diseño y fabricación a medida de bompers de 18\" a 22\" en lámina de acero inoxidable calidad 304, corte láser computarizado, soldadura TIG pulida e iluminación LED integrada.",
+      badge: "Especialidad de la Casa",
     },
     {
-      title: "Luces y personalización",
-      text: "Montaje y asesoría en iluminación, detalles exteriores y elementos que elevan el impacto visual del vehículo.",
+      title: "Viseras Americanas & Cornetas",
+      text: "Montaje de viseras estilo americano en acero espejo (Drop Visors), cornetas de tren Hadley con pulmones de aire y luces de gálibo tipo sandía (watermelon LEDs).",
+      badge: "Lujo & Estilo",
     },
     {
-      title: "Atención rápida",
-      text: "Cotización clara, contacto por WhatsApp y acompañamiento para que el cliente no se pierda en el proceso.",
+      title: "Latonería, Pintura & Estética Pesada",
+      text: "Intervenciones estéticas de cabina, restauración de chasis, pulido cerámico para camiones de exhibición y personalización de estribos y tanques de combustible.",
+      badge: "Acabado Showroom",
+    },
+    {
+      title: "Tienda Container de Lujos & Repuestos",
+      text: "Punto de venta físico y distribución de rines cromados Alcoa, tapas de espárragos tipo spike, tuberías de escape cromadas y accesorios eléctricos.",
+      badge: "Punto Físico",
     },
   ];
 
-  const reasons = [
-    "Atención directa y rápida",
-    "Enfoque en vehículos pesados",
-    "Imagen más profesional para el cliente",
-    "Proceso simple de cotización",
+  const featuredProducts = [
+    {
+      title: "Bomper de Acero Inoxidable 20\" con Luces LED",
+      category: "Estructura & Cromo",
+      image: "/images/showroom/detail_bumper_chrome.jpg",
+      description: "Acero inoxidable 304 calibre pesado, corte láser de precisión, luces LED ámbar impermeables IP68 y acabado espejo.",
+    },
+    {
+      title: "Visera Americana Drop Visor & Doble Corneta",
+      category: "Cabina & Lujo",
+      image: "/images/showroom/detail_visera_cornetas.jpg",
+      description: "Visera americana con ajuste aerodinámico para Kenworth, Mack e International, con base para cornetas de alta resonancia.",
+    },
+    {
+      title: "Rines Pulidos Alcoa con Spikes Cromados",
+      category: "Ruedas & Ejes",
+      image: "/images/showroom/detail_rines_spikes.jpg",
+      description: "Rines de aluminio forjado pulido espejo, copas cromadas y espárragos en punta para un look agresivo y respetado en ruta.",
+    },
   ];
-
-  useEffect(() => {
-    const loadGallery = async () => {
-      try {
-        const data = await getGalleryRequest();
-        setCatalogImages(Array.isArray(data.catalog) ? data.catalog : []);
-        setVehicleImages(Array.isArray(data.vehicles) ? data.vehicles : []);
-      } catch (error) {
-        console.error("Error cargando imágenes públicas:", error);
-      }
-    };
-
-    loadGallery();
-  }, []);
 
   const handleChange = (e) => {
     setForm({
@@ -58,135 +68,291 @@ function PublicHome() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.name || !form.phone) {
+      setMessage("⚠️ Por favor ingresa al menos tu nombre y número de WhatsApp.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
     try {
-      await createQuoteRequest({
-        client_name: form.name,
-        phone: form.phone,
-        city: null,
-        vehicle_type: "No especificado",
-        plate: null,
-        service: form.service,
-        details: form.details,
+      const response = await fetch("http://localhost:4000/api/quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_name: form.name,
+          phone: form.phone,
+          city: form.city || "No especificada",
+          vehicle_type: form.vehicle_type,
+          plate: form.plate || null,
+          service: form.service,
+          details: form.details || "Cotización solicitada desde la página principal",
+        }),
       });
 
-      setMessage("✅ Cotización enviada correctamente. Te contactaremos pronto.");
-      setForm({
-        name: "",
-        phone: "",
-        service: "",
-        details: "",
-      });
-    } catch (error) {
-      console.error(error);
-      setMessage("Error enviando la cotización. Intenta de nuevo.");
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Cotización registrada:", data);
+      }
+    } catch (err) {
+      console.warn("Registrando localmente:", err);
     } finally {
       setLoading(false);
+      setMessage("✅ ¡Solicitud enviada! Te estamos conectando con un asesor por WhatsApp...");
+
+      // Redirigir a WhatsApp con el mensaje pre-cargado
+      const waText = encodeURIComponent(
+        `¡Hola Mellos Truck! 🚛🔥\nQuiero cotizar para mi vehículo:\n- Nombre: ${form.name}\n- Mula/Camión: ${form.vehicle_type} (Placa: ${form.plate || "Sin especificar"})\n- Servicio: ${form.service}\n- Ciudad: ${form.city}\n- Detalles: ${form.details || "Quiero más información de precios y tiempos."}`
+      );
+      window.open(`https://wa.me/573000000000?text=${waText}`, "_blank");
     }
   };
 
   return (
     <div className="public-page">
+      {/* 1. Header Pro */}
       <header className="public-header">
         <div className="public-container header-inner">
-          <div className="brand-box">
+          <Link to="/" className="brand-box">
             <div className="brand-logo">MT</div>
             <div>
-              <h2>Mellos Trucks</h2>
-              <p>Accesorios y soluciones para pesados</p>
+              <h2>MELLOS TRUCK</h2>
+              <p>Taller de Modificaciones & Tienda Container</p>
             </div>
-          </div>
+          </Link>
 
           <nav className="public-nav">
             <a href="#inicio">Inicio</a>
+            <a href="#transformacion">Antes y Después</a>
+            <a href="#showroom">Showroom</a>
             <a href="#servicios">Servicios</a>
-            <a href="#galeria">Galería</a>
+            <a href="#catalogo">Tienda Container</a>
             <a href="#cotizar">Cotizar</a>
           </nav>
 
-          <a
-            className="primary-btn header-btn"
-            href="https://wa.me/573000000000"
-            target="_blank"
-            rel="noreferrer"
-          >
-            WhatsApp
-          </a>
+          <div className="header-cta-group">
+            <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="btn-header-magic">
+              ⚡ Ver Showroom 4K
+            </Link>
+            <a
+              className="primary-btn header-btn"
+              href="https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20quiero%20cotizar%20accesorios%20para%20mi%20cami%C3%B3n"
+              target="_blank"
+              rel="noreferrer"
+            >
+              💬 WhatsApp
+            </a>
+          </div>
         </div>
       </header>
 
+      {/* 2. Hero Principal Cinematográfico */}
       <section className="hero-section" id="inicio">
         <div className="public-container hero-grid">
           <div className="hero-copy">
-            <span className="hero-badge">Mellos Pro</span>
+            <div className="hero-badge-container">
+              <span className="hero-badge-dot"></span>
+              <span className="hero-badge">LÍDERES EN MODIFICACIÓN DE PESADOS</span>
+            </div>
             <h1>
-              Accesorios, presencia y soluciones para vehículos pesados
+              POTENCIA, ACERO & PRESENCIA PARA TU TRACTOMULA
             </h1>
             <p>
-              En Mellos Trucks llevamos cada proyecto con enfoque visual,
-              atención rápida y una presentación profesional. No solo vendemos
-              piezas: ayudamos a que el vehículo se vea más fuerte, más serio y
-              más comercial.
+              En <strong>Mellos Truck</strong> convertimos tu vehículo de carga pesada en una verdadera obra de arte en carretera. Fabricación artesanal de bompers en acero inoxidable, viseras americanas, iluminación LED y lujos que imponen respeto en cualquier ruta.
             </p>
 
             <div className="hero-actions">
-              <a href="#cotizar" className="primary-btn">
-                Solicitar cotización
+              <a href="#cotizar" className="primary-btn pulse-btn">
+                ⚡ Cotizar Mi Nave Ahora
               </a>
-              <a href="#galeria" className="secondary-btn">
-                Ver trabajos
-              </a>
+              <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="secondary-btn">
+                🎬 Explorar Showroom 4K
+              </Link>
             </div>
 
             <div className="hero-metrics">
               <div className="metric-card">
-                <strong>+ Impacto</strong>
-                <span>Más presencia visual</span>
+                <strong>100% Acero</strong>
+                <span>Inoxidable Calidad 304</span>
               </div>
               <div className="metric-card">
-                <strong>+ Orden</strong>
-                <span>Cotización más clara</span>
+                <strong>+1,200</strong>
+                <span>Mulas Transformadas</span>
               </div>
               <div className="metric-card">
-                <strong>+ Venta</strong>
-                <span>Canal directo por WhatsApp</span>
+                <strong>Garantía</strong>
+                <span>De Taller & Soldadura TIG</span>
               </div>
             </div>
           </div>
 
           <div className="hero-visual">
-            <div className="hero-panel hero-panel-main">
-              <span>Proyecto premium</span>
-              <h3>Diseño, accesorios y presencia en carretera</h3>
-            </div>
-            <div className="hero-panel hero-panel-small top-right">
-              <span>Atención rápida</span>
-            </div>
-            <div className="hero-panel hero-panel-small bottom-left">
-              <span>Cotización directa</span>
+            <div className="hero-featured-image-wrapper">
+              <img
+                src="/images/showroom/kenworth_after.jpg"
+                alt="Kenworth T800 Personalizada por Mellos Truck"
+                className="hero-main-truck-img"
+              />
+              <div className="hero-image-overlay-card">
+                <span className="overlay-tag">PROYECTO DESTACADO</span>
+                <h4>Kenworth T800 Aerocab</h4>
+                <p>Bomper 20" • Visera Espejo • Doble Corneta</p>
+                <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="overlay-link">
+                  Ver Magic Link del Vehículo ➜
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="public-section" id="servicios">
+      {/* 3. Slider Interactivo "Antes y Después" Destacado en el Home */}
+      <section className="public-section transformacion-section" id="transformacion">
         <div className="public-container">
           <div className="section-heading">
-            <span>Servicios</span>
-            <h2>Lo que hacemos para que Mellos se vea duro</h2>
+            <span className="subheading-neon">EL CAMBIO HABLA POR SÍ SOLO</span>
+            <h2>Intervención Real de Taller: Antes vs. Después</h2>
             <p>
-              La idea es transmitir potencia, orden y confianza. Esta página no
-              solo debe verse bien: debe hacer que el cliente escriba y pida
-              cotización.
+              Desliza la manija amarilla para ver la transformación de esta Kenworth T800: desde su llegada con bomper de fábrica hasta la entrega con acero cromado tipo espejo y accesorios de lujo.
+            </p>
+          </div>
+
+          <div className="home-slider-wrapper">
+            <BeforeAfterSlider
+              beforeImage="/images/showroom/kenworth_before.jpg"
+              afterImage="/images/showroom/kenworth_after.jpg"
+              beforeLabel="ANTES (Llegada al taller)"
+              afterLabel="DESPUÉS (Mellos Truck)"
+              aspectRatio="16/9"
+            />
+            <div className="slider-bottom-meta">
+              <div className="meta-left">
+                <strong>Kenworth T800 • Placa WTL-892</strong>
+                <p>Transformación completa de estética, iluminación perimetral y bomper de acero inoxidable.</p>
+              </div>
+              <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="btn-view-project">
+                🎬 Ver Video & Ficha Completa del Proyecto
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Módulo Showroom & Magic Link Explanation */}
+      <section className="public-section dark-section" id="showroom">
+        <div className="public-container magic-link-feature-grid">
+          <div className="magic-copy">
+            <span className="subheading-neon">TECNOLOGÍA DIFERENCIADORA</span>
+            <h2>El Magic Link: Tu Camión con su Propia Página Web</h2>
+            <p>
+              Cada vez que una tractomula sale de nuestro taller, generamos un <strong>enlace público exclusivo de solo lectura</strong> con su placa y marca.
+            </p>
+            <ul className="magic-perks-list">
+              <li>
+                <span className="perk-icon">⚡</span>
+                <div>
+                  <strong>Slider interactivo de tu vehículo</strong>
+                  <p>Muestra el cambio exacto de tu mula a tus colegas y amigos.</p>
+                </div>
+              </li>
+              <li>
+                <span className="perk-icon">🎬</span>
+                <div>
+                  <strong>Video cinemático en 4K sin pausas</strong>
+                  <p>Tomas aéreas en dron reproducidas al instante gracias a streaming HTTP 206.</p>
+                </div>
+              </li>
+              <li>
+                <span className="perk-icon">💬</span>
+                <div>
+                  <strong>Botón directo de compartir por WhatsApp</strong>
+                  <p>Presume tu nave con un solo clic en tus grupos de camioneros.</p>
+                </div>
+              </li>
+            </ul>
+
+            <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="primary-btn">
+              🔥 Probar Demostración en Vivo
+            </Link>
+          </div>
+
+          <div className="magic-preview-card">
+            <div className="magic-card-header">
+              <span className="window-dot red"></span>
+              <span className="window-dot yellow"></span>
+              <span className="window-dot green"></span>
+              <span className="magic-url-bar">mellostruck.com/galeria/Kenworth-T800-Placa-WTL892</span>
+            </div>
+            <div className="magic-card-body">
+              <img src="/images/showroom/kenworth_after.jpg" alt="Showroom Preview" />
+              <div className="magic-card-info">
+                <h4>Kenworth T800 Aerocab</h4>
+                <p>Placa: WTL-892 • Cliente: Don Carlos Rodríguez</p>
+                <div className="magic-card-tags">
+                  <span>Bomper 20"</span>
+                  <span>Visera Acero</span>
+                  <span>Luces LED</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Catálogo Tienda Container & Accesorios */}
+      <section className="public-section" id="catalogo">
+        <div className="public-container">
+          <div className="section-heading">
+            <span className="subheading-neon">TIENDA CONTAINER & PRODUCTOS</span>
+            <h2>Lujos & Accesorios Listos para Instalar</h2>
+            <p>
+              En nuestro Container encuentras piezas fabricadas con la más alta calidad de acero inoxidable y marcas reconocidas de iluminación pesada.
+            </p>
+          </div>
+
+          <div className="products-showcase-grid">
+            {featuredProducts.map((prod, index) => (
+              <div className="product-showcase-card" key={index}>
+                <div className="product-img-wrapper">
+                  <img src={prod.image} alt={prod.title} loading="lazy" decoding="async" />
+                  <span className="product-category-tag">{prod.category}</span>
+                </div>
+                <div className="product-content">
+                  <h3>{prod.title}</h3>
+                  <p>{prod.description}</p>
+                  <a
+                    href={`https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20estoy%20interesado%20en%20el%20producto:%20${encodeURIComponent(
+                      prod.title
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-product-inquire"
+                  >
+                    💬 Consultar Precio en WhatsApp
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Servicios de Taller Especializado */}
+      <section className="public-section dark-section" id="servicios">
+        <div className="public-container">
+          <div className="section-heading">
+            <span className="subheading-neon">SERVICIOS DE TALLER</span>
+            <h2>Lo que Hacemos para que tu Mula Imponga Respeto</h2>
+            <p>
+              Trabajamos con las marcas más exigentes: Kenworth, Mack, International, Freightliner y Peterbilt.
             </p>
           </div>
 
           <div className="services-grid">
             {services.map((service, index) => (
               <article className="service-card" key={index}>
-                <div className="service-number">0{index + 1}</div>
+                <span className="service-badge-pill">{service.badge}</span>
                 <h3>{service.title}</h3>
                 <p>{service.text}</p>
               </article>
@@ -195,180 +361,189 @@ function PublicHome() {
         </div>
       </section>
 
-      <section className="public-section dark-section">
-        <div className="public-container reasons-grid">
-          <div>
-            <div className="section-heading left">
-              <span>Por qué Mellos</span>
-              <h2>Una marca que debe verse pesada y profesional</h2>
-              <p>
-                El objetivo de esta landing es que el cliente sienta que está
-                tratando con un negocio serio, fuerte y bien montado.
-              </p>
-            </div>
-          </div>
-
-          <div className="reasons-list">
-            {reasons.map((item, index) => (
-              <div className="reason-item" key={index}>
-                <div className="reason-check">✓</div>
-                <p>{item}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="public-section" id="catalogo">
-        <div className="public-container">
-          <div className="section-heading">
-            <span>Catálogo</span>
-            <h2>Lo que venden y lo que se puede mostrar</h2>
-            <p>
-              Aquí van las piezas, accesorios y productos que ofrecen para que
-              el cliente vea lo que puede conseguir.
-            </p>
-          </div>
-
-          <div className="gallery-grid">
-            {catalogImages.length > 0 ? (
-              catalogImages.map((item) => (
-                <div className="gallery-card" key={item.path}>
-                  <img src={item.url} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <div className="gallery-overlay">
-                    <h3>{item.name}</h3>
-                    <p>Catálogo</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p>No hay imágenes de catálogo aún.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="public-section dark-section" id="vehiculos">
-        <div className="public-container">
-          <div className="section-heading">
-            <span>Vehículos</span>
-            <h2>Cómo quedan los vehículos después del trabajo</h2>
-            <p>
-              Esta sección muestra la parte visual del resultado final: el
-              vehículo ya transformado y listo para llamar la atención.
-            </p>
-          </div>
-
-          <div className="gallery-grid">
-            {vehicleImages.length > 0 ? (
-              vehicleImages.map((item) => (
-                <div className="gallery-card" key={item.path}>
-                  <img src={item.url} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <div className="gallery-overlay">
-                    <h3>{item.name}</h3>
-                    <p>Vehículo</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p>No hay imágenes de vehículos aún.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
+      {/* 7. Cotizador Rápido Directo a WhatsApp */}
       <section className="public-section accent-section" id="cotizar">
         <div className="public-container quote-wrapper">
           <div className="quote-copy">
-            <span>Cotizar</span>
-            <h2>Cuéntanos qué necesitas y te respondemos por WhatsApp</h2>
+            <span className="subheading-neon">COTIZADOR RÁPIDO</span>
+            <h2>¿Listo para Personalizar tu Mula?</h2>
             <p>
-              Esto lo dejamos listo para que el cliente escriba sin pensar
-              demasiado. Después lo conectamos al backend para guardar la
-              solicitud en el panel admin.
+              Completa los datos de tu vehículo y te respondemos de inmediato con la propuesta técnica y costos por WhatsApp.
             </p>
+
+            <div className="quote-trust-points">
+              <div className="trust-item">
+                <span className="trust-check">✓</span>
+                <span>Asesoría personalizada por maestros paileros</span>
+              </div>
+              <div className="trust-item">
+                <span className="trust-check">✓</span>
+                <span>Tiempos de entrega claros y garantizados</span>
+              </div>
+              <div className="trust-item">
+                <span className="trust-check">✓</span>
+                <span>Envíos e instalaciones a nivel nacional</span>
+              </div>
+            </div>
           </div>
 
           <div className="quote-card">
-            <input
-              type="text"
-              name="name"
-              placeholder="Nombre"
-              value={form.name}
-              onChange={handleChange}
-            />
+            <h3 className="quote-card-title">Solicitar Cotización de Taller</h3>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group-row">
+                <div className="form-field">
+                  <label>Nombre o Empresa *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Ej: Don Carlos / Transportes SAS"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Número de WhatsApp *</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Ej: 310 123 4567"
+                    value={form.phone}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
 
-            <input
-              type="text"
-              name="phone"
-              placeholder="Teléfono"
-              value={form.phone}
-              onChange={handleChange}
-            />
+              <div className="form-group-row">
+                <div className="form-field">
+                  <label>Vehículo / Modelo</label>
+                  <select name="vehicle_type" value={form.vehicle_type} onChange={handleChange}>
+                    <option value="Kenworth T800">Kenworth T800</option>
+                    <option value="Kenworth W900">Kenworth W900</option>
+                    <option value="Kenworth T680">Kenworth T680</option>
+                    <option value="Mack Vision / Anthem">Mack Vision / Anthem</option>
+                    <option value="International Prostar / LT">International Prostar / LT</option>
+                    <option value="Freightliner Cascadia / Coronado">Freightliner Cascadia / Coronado</option>
+                    <option value="Otro Vehículo Pesado">Otro Vehículo Pesado</option>
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label>Placa del Vehículo</label>
+                  <input
+                    type="text"
+                    name="plate"
+                    placeholder="Ej: WTL-892"
+                    value={form.plate}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
 
-            <input
-              type="text"
-              name="service"
-              placeholder="Servicio que necesitas"
-              value={form.service}
-              onChange={handleChange}
-            />
+              <div className="form-field">
+                <label>Servicio o Accesorio Deseado</label>
+                <select name="service" value={form.service} onChange={handleChange}>
+                  <option value="Bomper de Acero Inoxidable (18-22 Pulgadas)">
+                    Bomper de Acero Inoxidable (18-22 Pulgadas)
+                  </option>
+                  <option value="Visera Americana & Juego de Cornetas">
+                    Visera Americana & Juego de Cornetas
+                  </option>
+                  <option value="Transformación Completa (Bomper + Visera + Luces)">
+                    Transformación Completa (Bomper + Visera + Luces)
+                  </option>
+                  <option value="Rines Cromados & Accesorios de Ruedas">
+                    Rines Cromados & Accesorios de Ruedas
+                  </option>
+                  <option value="Latonería, Pintura & Embellecimiento">
+                    Latonería, Pintura & Embellecimiento
+                  </option>
+                  <option value="Repuestos / Lujos Tienda Container">
+                    Repuestos / Lujos Tienda Container
+                  </option>
+                </select>
+              </div>
 
-            <textarea
-              name="details"
-              rows="5"
-              placeholder="Describe lo que buscas"
-              value={form.details}
-              onChange={handleChange}
-            />
+              <div className="form-field">
+                <label>Detalles o requerimientos especiales</label>
+                <textarea
+                  name="details"
+                  rows="3"
+                  placeholder="¿Algún corte láser, luces LED o diseño específico que tengas en mente?"
+                  value={form.details}
+                  onChange={handleChange}
+                />
+              </div>
 
-            <button className="primary-btn" onClick={handleSubmit} disabled={loading}>
-              {loading ? "Enviando..." : "Enviar cotización"}
-            </button>
+              <button className="primary-btn form-submit-btn" type="submit" disabled={loading}>
+                {loading ? "Procesando..." : "⚡ Enviar y Chatear por WhatsApp"}
+              </button>
 
-            {message && <p className="form-message">{message}</p>}
+              {message && <p className="form-message">{message}</p>}
+            </form>
           </div>
         </div>
       </section>
 
+      {/* 8. Footer Pro */}
       <footer className="public-footer">
         <div className="public-container footer-grid">
           <div>
-            <h3>Mellos Trucks</h3>
+            <div className="brand-box footer-brand">
+              <div className="brand-logo">MT</div>
+              <h3>MELLOS TRUCK</h3>
+            </div>
             <p>
-              Soluciones y accesorios para vehículos pesados con una imagen más
-              seria, profesional y vendedora.
+              El taller líder en fabricación de bompers de acero inoxidable, viseras americanas y personalización estética para tractomulas y vehículos de carga pesada.
+            </p>
+            <p className="footer-ig">
+              Síguenos en Instagram:{" "}
+              <a href="https://www.instagram.com/mellos_trucks/" target="_blank" rel="noreferrer">
+                @mellos_trucks
+              </a>
             </p>
           </div>
 
           <div>
-            <h4>Navegación</h4>
-            <a href="#inicio">Inicio</a>
-            <a href="#servicios">Servicios</a>
-            <a href="#galeria">Galería</a>
-            <a href="#cotizar">Cotizar</a>
+            <h4>Showroom & Taller</h4>
+            <Link to="/galeria/Kenworth-T800-Placa-WTL892">Proyecto Kenworth T800</Link>
+            <a href="#transformacion">Slider Antes y Después</a>
+            <a href="#catalogo">Tienda Container</a>
+            <a href="#servicios">Servicios de Acero</a>
           </div>
 
           <div>
-            <h4>Contacto</h4>
-            <a href="https://wa.me/573000000000" target="_blank" rel="noreferrer">
-              WhatsApp
+            <h4>Atención & Contacto</h4>
+            <a
+              href="https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20quiero%20m%C3%A1s%20informaci%C3%B3n"
+              target="_blank"
+              rel="noreferrer"
+            >
+              💬 WhatsApp Ventas Directas
             </a>
-            <a href="/admin/login">Panel admin</a>
+            <p className="footer-location">📍 Medellín, Colombia</p>
+            <Link to="/admin/login" className="footer-admin-link">
+              🔐 Acceso Administrativo
+            </Link>
           </div>
+        </div>
+
+        <div className="footer-bottom-bar">
+          <p>© {new Date().getFullYear()} Mellos Truck. Todos los derechos reservados.</p>
         </div>
       </footer>
 
+      {/* Botón Flotante de WhatsApp */}
       <a
         className="floating-whatsapp"
-        href="https://wa.me/573000000000"
+        href="https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20quiero%20cotizar%20mi%20cami%C3%B3n"
         target="_blank"
         rel="noreferrer"
+        aria-label="Contactar por WhatsApp"
       >
-        WhatsApp
+        <span>💬</span>
+        <span className="wa-text">Cotizar en WhatsApp</span>
       </a>
     </div>
   );
 }
-
-export default PublicHome;

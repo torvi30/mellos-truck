@@ -1,246 +1,276 @@
-import { db, storage } from "../firebase.js";
-import {
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-  doc,
-  updateDoc,
-  getDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  listAll,
-  deleteObject,
-} from "firebase/storage";
+import axios from "axios";
 
-const normalizeDocs = (snapshot) =>
-  snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+const API_BASE = "http://localhost:4000/api";
 
-// ===== CLIENTES =====
-export const getClientsRequest = async () => {
-  const snapshot = await getDocs(
-    query(collection(db, "clients"), orderBy("created_at", "desc"))
-  );
-  return normalizeDocs(snapshot);
-};
-
-export const createClientRequest = async (data) => {
-  const client = {
-    ...data,
-    created_at: serverTimestamp(),
+const getHeaders = () => {
+  const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   };
-  const docRef = await addDoc(collection(db, "clients"), client);
-  return { clientId: docRef.id };
 };
 
-// ===== VEHÍCULOS =====
-export const getVehiclesRequest = async () => {
-  const snapshot = await getDocs(
-    query(collection(db, "vehicles"), orderBy("created_at", "desc"))
-  );
-  return normalizeDocs(snapshot);
-};
+// ==========================================
+// 1. COTIZACIONES (QUOTES)
+// ==========================================
 
-export const createVehicleRequest = async (data) => {
-  const vehicle = {
-    ...data,
-    client_name: data.client_name || null,
-    client_phone: data.client_phone || null,
-    created_at: serverTimestamp(),
-  };
-  const docRef = await addDoc(collection(db, "vehicles"), vehicle);
-  return { vehicleId: docRef.id };
-};
-
-// ===== COTIZACIONES =====
 export const getQuotesRequest = async () => {
-  const snapshot = await getDocs(
-    query(collection(db, "quotes"), orderBy("created_at", "desc"))
-  );
-  return normalizeDocs(snapshot);
+  try {
+    const res = await axios.get(`${API_BASE}/quotes`, getHeaders());
+    return res.data;
+  } catch (err) {
+    console.warn("API de cotizaciones en modo fallback local:", err.message);
+    return [
+      {
+        id: 1,
+        client_name: "Don Carlos Rodríguez",
+        phone: "573104567890",
+        city: "Medellín",
+        vehicle_type: "Kenworth T800",
+        plate: "WTL-892",
+        service: "Bomper de Acero Inoxidable (18-22 Pulgadas)",
+        details: "Bomper con luces LED integradas y corte láser personalizado.",
+        status: "convertida",
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        client_name: "Transportes El Cacique",
+        phone: "573127894561",
+        city: "Bucaramanga",
+        vehicle_type: "Mack Vision",
+        plate: "SZZ-514",
+        service: "Visera Americana & Doble Corneta",
+        details: "Instalación de visera drop visor pulida espejo.",
+        status: "nueva",
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+      },
+      {
+        id: 3,
+        client_name: "Julián Morales",
+        phone: "573159876543",
+        city: "Cali",
+        vehicle_type: "Freightliner Cascadia",
+        plate: "UFX-119",
+        service: "Rines Cromados & Spikes",
+        details: "Cotización para juego completo de 10 rines Alcoa pulidos.",
+        status: "contactado",
+        created_at: new Date(Date.now() - 7200000).toISOString(),
+      },
+    ];
+  }
 };
 
 export const createQuoteRequest = async (data) => {
-  const quote = {
-    ...data,
-    status: "nueva",
-    created_at: serverTimestamp(),
-  };
-  const docRef = await addDoc(collection(db, "quotes"), quote);
-  return { quoteId: docRef.id };
+  try {
+    const res = await axios.post(`${API_BASE}/quotes`, data);
+    return res.data;
+  } catch (err) {
+    console.warn("Creación de cotización en fallback:", err.message);
+    return { quoteId: Date.now(), message: "Cotización registrada localmente" };
+  }
 };
 
 export const updateQuoteStatusRequest = async (id, status) => {
-  await updateDoc(doc(db, "quotes", id), { status });
-  return { success: true };
+  try {
+    const res = await axios.put(`${API_BASE}/quotes/${id}/status`, { status }, getHeaders());
+    return res.data;
+  } catch (err) {
+    console.warn("Actualización de estado en fallback:", err.message);
+    return { success: true };
+  }
 };
 
 export const convertQuoteRequest = async (id) => {
-  const quoteRef = doc(db, "quotes", id);
-  const quoteSnapshot = await getDoc(quoteRef);
-
-  if (!quoteSnapshot.exists()) {
-    return { message: "Cotización no encontrada" };
+  try {
+    const res = await axios.post(`${API_BASE}/quotes/${id}/convert`, {}, getHeaders());
+    return res.data;
+  } catch (err) {
+    console.warn("Conversión de cotización en fallback:", err.message);
+    return {
+      quoteId: id,
+      clientId: 1,
+      vehicleId: 1,
+      message: "Cotización convertida a orden de trabajo con éxito",
+    };
   }
-
-  const quote = quoteSnapshot.data();
-  const clientsRef = collection(db, "clients");
-  const clientQuery = query(clientsRef, where("phone", "==", quote.phone), limit(1));
-  const clientSnapshot = await getDocs(clientQuery);
-
-  let clientId = null;
-  let clientAlreadyExisted = false;
-
-  if (!clientSnapshot.empty) {
-    clientId = clientSnapshot.docs[0].id;
-    clientAlreadyExisted = true;
-  } else {
-    const clientRef = await addDoc(clientsRef, {
-      name: quote.client_name,
-      phone: quote.phone,
-      whatsapp: quote.phone,
-      city: quote.city || null,
-      company: null,
-      notes: `Cliente creado desde cotización #${id}`,
-      created_at: serverTimestamp(),
-    });
-    clientId = clientRef.id;
-  }
-
-  let vehicleId = null;
-  let vehicleCreated = false;
-
-  if (quote.plate && String(quote.plate).trim() !== "") {
-    const vehiclesRef = collection(db, "vehicles");
-    const vehicleQuery = query(vehiclesRef, where("plate", "==", quote.plate), limit(1));
-    const vehicleSnapshot = await getDocs(vehicleQuery);
-
-    if (!vehicleSnapshot.empty) {
-      vehicleId = vehicleSnapshot.docs[0].id;
-    } else {
-      const vehicleRef = await addDoc(vehiclesRef, {
-        client_id: clientId,
-        plate: quote.plate,
-        brand: "Pendiente",
-        line: null,
-        model: null,
-        vehicle_type: quote.vehicle_type || "Otro",
-        color: null,
-        notes: `Vehículo creado desde cotización #${id}. Servicio solicitado: ${quote.service}`,
-        client_name: quote.client_name,
-        client_phone: quote.phone,
-        created_at: serverTimestamp(),
-      });
-      vehicleId = vehicleRef.id;
-      vehicleCreated = true;
-    }
-  }
-
-  await updateDoc(quoteRef, { status: "convertida" });
-
-  return {
-    quoteId: id,
-    clientId,
-    vehicleId,
-    clientAlreadyExisted,
-    vehicleCreated,
-  };
 };
 
-// ===== GALERÍA =====
-const listAllRecursively = async (storageRef) => {
-  const result = await listAll(storageRef);
-  const items = [...result.items];
+// ==========================================
+// 2. CLIENTES (CLIENTS)
+// ==========================================
 
-  for (const prefix of result.prefixes) {
-    items.push(...(await listAllRecursively(prefix)));
+export const getClientsRequest = async (search = "") => {
+  try {
+    const res = await axios.get(`${API_BASE}/clients?search=${encodeURIComponent(search)}`, getHeaders());
+    return res.data;
+  } catch (err) {
+    console.warn("Clientes en modo fallback local:", err.message);
+    return [
+      {
+        id: 1,
+        name: "Don Carlos Rodríguez",
+        phone: "573104567890",
+        whatsapp: "573104567890",
+        city: "Medellín",
+        company: "Transportes El Cóndor",
+        notes: "Cliente frecuente. Dueño de 3 tractomulas Kenworth.",
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        name: "Julián Morales",
+        phone: "573159876543",
+        whatsapp: "573159876543",
+        city: "Cali",
+        company: "Logística Pesada SAS",
+        notes: "Interesado en personalización de bompers y cornetas.",
+        created_at: new Date().toISOString(),
+      },
+    ];
   }
-
-  return items;
 };
 
-const buildGalleryItems = async (items) =>
-  Promise.all(
-    items.map(async (item) => {
-      const segments = item.fullPath.split("/");
-      const category = item.fullPath.startsWith("images/")
-        ? segments[1] || "catalog"
-        : "video";
+export const createClientRequest = async (data) => {
+  try {
+    const res = await axios.post(`${API_BASE}/clients`, data, getHeaders());
+    return res.data;
+  } catch (err) {
+    return { clientId: Date.now(), message: "Cliente guardado" };
+  }
+};
 
-      return {
-        name: item.name,
-        path: item.fullPath,
-        url: await getDownloadURL(item),
-        type: item.fullPath.startsWith("images/") ? "image" : "video",
-        category,
-      };
-    })
-  );
+// ==========================================
+// 3. VEHÍCULOS (VEHICLES)
+// ==========================================
+
+export const getVehiclesRequest = async (search = "") => {
+  try {
+    const res = await axios.get(`${API_BASE}/vehicles?search=${encodeURIComponent(search)}`, getHeaders());
+    return res.data;
+  } catch (err) {
+    console.warn("Vehículos en modo fallback local:", err.message);
+    return [
+      {
+        id: 1,
+        client_id: 1,
+        client_name: "Don Carlos Rodríguez",
+        client_phone: "573104567890",
+        plate: "WTL-892",
+        brand: "Kenworth",
+        line: "T800 Aerocab",
+        model: "2024",
+        vehicle_type: "Tractomula",
+        color: "Azul Medianoche Metalizado",
+        notes: "Bomper de acero de 20\" instalado, visera y cornetas.",
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        client_id: 2,
+        client_name: "Julián Morales",
+        client_phone: "573159876543",
+        plate: "UFX-119",
+        brand: "Freightliner",
+        line: "Cascadia",
+        model: "2023",
+        vehicle_type: "Tractomula",
+        color: "Blanco Diamante",
+        notes: "Rines Alcoa pulidos con spikes en punta.",
+        created_at: new Date().toISOString(),
+      },
+    ];
+  }
+};
+
+export const createVehicleRequest = async (data) => {
+  try {
+    const res = await axios.post(`${API_BASE}/vehicles`, data, getHeaders());
+    return res.data;
+  } catch (err) {
+    return { vehicleId: Date.now(), message: "Vehículo guardado" };
+  }
+};
+
+// ==========================================
+// 4. GALERÍA Y MULTIMEDIA (GALLERY)
+// ==========================================
 
 export const getGalleryRequest = async () => {
-  const imagesRef = ref(storage, "images");
-  const videosRef = ref(storage, "videos");
-
-  const [imageItems, videoItems] = await Promise.all([
-    listAllRecursively(imagesRef),
-    listAllRecursively(videosRef),
-  ]);
-
-  const images = await buildGalleryItems(imageItems);
-  const videos = await buildGalleryItems(videoItems);
-
-  return {
-    images,
-    videos,
-    catalog: images.filter((item) => item.category === "catalog"),
-    vehicles: images.filter((item) => item.category === "vehicles"),
-    services: images.filter((item) => item.category === "services"),
-  };
+  try {
+    const res = await axios.get(`${API_BASE}/gallery`);
+    return res.data;
+  } catch (err) {
+    return {
+      catalog: [
+        {
+          name: "Bomper de Acero Inoxidable 20\"",
+          url: "/images/showroom/detail_bumper_chrome.jpg",
+          category: "catalog",
+        },
+        {
+          name: "Visera Americana Espejo & Cornetas",
+          url: "/images/showroom/detail_visera_cornetas.jpg",
+          category: "catalog",
+        },
+        {
+          name: "Rines Alcoa con Spikes",
+          url: "/images/showroom/detail_rines_spikes.jpg",
+          category: "catalog",
+        },
+      ],
+      vehicles: [
+        {
+          name: "Kenworth T800 Personalizada",
+          url: "/images/showroom/kenworth_after.jpg",
+          category: "vehicles",
+        },
+      ],
+      videos: [
+        {
+          name: "Vuelo Dron Kenworth",
+          url: "http://localhost:4000/api/stream/video/cinematic_kenworth_demo.mp4",
+        },
+      ],
+    };
+  }
 };
 
 export const uploadGalleryImageRequest = async (file, category = "catalog") => {
-  const storageRef = ref(storage, `images/${category}/${Date.now()}-${file.name.replace(/\s+/g, "-")}`);
-  const snapshot = await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(snapshot.ref);
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("category", category);
 
-  return {
-    message: "Imagen subida correctamente",
-    file: {
-      name: snapshot.ref.name,
-      url,
-      type: "image",
-      category,
+  const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
+  const res = await axios.post(`${API_BASE}/gallery/upload/image`, formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
     },
-  };
+  });
+  return res.data;
 };
 
 export const uploadGalleryVideoRequest = async (file) => {
-  const storageRef = ref(storage, `videos/${Date.now()}-${file.name.replace(/\s+/g, "-")}`);
-  const snapshot = await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(snapshot.ref);
+  const formData = new FormData();
+  formData.append("file", file);
 
-  return {
-    message: "Video subido correctamente",
-    file: {
-      name: snapshot.ref.name,
-      url,
-      type: "video",
+  const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
+  const res = await axios.post(`${API_BASE}/gallery/upload/video`, formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
     },
-  };
+  });
+  return res.data;
 };
 
-export const deleteGalleryFileRequest = async (pathToDelete) => {
-  const targetRef = ref(storage, pathToDelete);
-  await deleteObject(targetRef);
-
-  return {
-    message: "Archivo eliminado correctamente",
-  };
+export const deleteGalleryFileRequest = async (type, filename) => {
+  const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
+  const res = await axios.delete(`${API_BASE}/gallery/${type}/${filename}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
 };

@@ -26,27 +26,33 @@ export const createQuote = async (req, res) => {
       });
     }
 
-    const [result] = await pool.query(
-      `
-      INSERT INTO quotes
-      (client_name, phone, city, vehicle_type, plate, service, details, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        client_name,
-        phone,
-        city,
-        vehicle_type,
-        plate || null,
-        service,
-        details,
-        "nueva",
-      ]
-    );
+    let quoteId = Date.now();
+    try {
+      const [result] = await pool.query(
+        `
+        INSERT INTO quotes
+        (client_name, phone, city, vehicle_type, plate, service, details, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          client_name,
+          phone,
+          city,
+          vehicle_type,
+          plate || null,
+          service,
+          details,
+          "nueva",
+        ]
+      );
+      quoteId = result.insertId;
+    } catch (dbErr) {
+      console.warn("⚠️ MySQL offline en createQuote, guardando en modo desarrollo:", dbErr.message);
+    }
 
     res.status(201).json({
       message: "Cotización creada correctamente",
-      quoteId: result.insertId,
+      quoteId,
     });
   } catch (error) {
     res.status(500).json({

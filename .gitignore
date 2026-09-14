@@ -1,16 +1,77 @@
+# =========================================================
+# .gitignore - Mellos Truck Monorepo (Production Grade)
+# =========================================================
+
+# 1. Dependencias (Node.js)
 node_modules/
-client/node_modules/
-server/node_modules/
-server/uploads/
+*/node_modules/
+package-lock.json.bak
+pnpm-lock.yaml
+yarn.lock
 
-.env
-.env.local
-client/.env
-client/.env.local
-server/.env
-server/.env.local
-
+# 2. Builds y Bundles de Producción
 dist/
+*/dist/
 build/
-
+*/build/
 .vite/
+*/.vite/
+out/
+.next/
+
+# 3. Variables de Entorno y Secretos Sensibles
+# (NUNCA subir credenciales a GitHub)
+.env
+.env.*
+*.env
+*.env.*
+client/.env
+client/.env.*
+server/.env
+server/.env.*
+
+# Permitir archivos de plantilla de ejemplo
+!.env.example
+!*.env.example
+
+# 4. Archivos Subidos / Multimedia Local Pesada del Servidor
+server/uploads/*
+!server/uploads/.gitkeep
+!server/uploads/*/.gitkeep
+uploads/
+*/uploads/
+temp/
+tmp/
+
+# 5. Logs y Depuración
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# 6. Caché Local y Frameworks
+.cache/
+.parcel-cache/
+.firebase/
+.eslintcache
+
+# 7. Editores y Sistema Operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

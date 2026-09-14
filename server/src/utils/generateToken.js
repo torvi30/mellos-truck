@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 
 const generateToken = (payload) => {
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
+  const secret = process.env.JWT_SECRET || "mellos_truck_jwt_secret_dev_key_304";
+  return jwt.sign(payload, secret, { expiresIn: "7d" });
 };
 
 export default generateToken;

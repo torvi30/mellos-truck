@@ -10,17 +10,16 @@ const PORT = process.env.PORT || 4000;
 const startServer = async () => {
   try {
     const connection = await pool.getConnection();
-    console.log("✅ MySQL conectado");
+    console.log("✅ MySQL conectado exitosamente");
     connection.release();
-
     await initAdmin();
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-    });
   } catch (error) {
-    console.error("❌ Error al iniciar servidor:", error.message);
+    console.warn("⚠️ Advertencia: MySQL no está disponible aún (" + error.message + "). El servidor Express se iniciará en modo resiliente para Streaming y Showroom.");
   }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor Mellos Truck corriendo en http://localhost:${PORT}`);
+  });
 };
 
 startServer();
