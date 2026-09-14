@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ImageUploader from "../components/ImageUploader";
 import BeforeAfterSlider from "../components/BeforeAfterSlider";
+import InvoiceModal from "../components/InvoiceModal";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { showSuccessToast, showErrorToast, showConfirmAlert } from "../utils/alerts";
 
 const API_BASE = "http://localhost:4000/api";
@@ -23,10 +25,12 @@ const DEFAULT_TRUCK_IMAGES = {
 };
 
 export default function WorkshopPage() {
+  const { isWorkshop } = useAuth();
   const [orders, setOrders] = useState([]);
   const [archivedOrders, setArchivedOrders] = useState([]);
   const [activeView, setActiveView] = useState("kanban"); // "kanban" | "history"
   const [printOrderData, setPrintOrderData] = useState(null);
+  const [invoiceOrderData, setInvoiceOrderData] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -463,9 +467,13 @@ export default function WorkshopPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", marginTop: "0.35rem", fontSize: "0.82rem", color: "#94a3b8", flexWrap: "wrap" }}>
               <span style={{ color: "#38bdf8", fontWeight: "800" }}>📁 {archivedOrders.length} Mulas Culminadas</span>
               <span style={{ color: "rgba(255,255,255,0.2)" }}>•</span>
-              <span style={{ color: "#34d399", fontWeight: "700" }}>💰 ${(archivedOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0)).toLocaleString("es-CO")} COP Facturado Total</span>
+              {!isWorkshop ? (
+                <span style={{ color: "#34d399", fontWeight: "700" }}>💰 ${(archivedOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0)).toLocaleString("es-CO")} COP Facturado Total</span>
+              ) : (
+                <span style={{ color: "#f97316", fontWeight: "700" }}>🛠️ Flota Archivada Operativa</span>
+              )}
               <span style={{ color: "rgba(255,255,255,0.2)" }}>•</span>
-              <span style={{ color: "#94a3b8" }}>Historial contable y vitrina 4K permanente</span>
+              <span style={{ color: "#94a3b8" }}>Historial de intervenciones y vitrina 4K permanente</span>
             </div>
           )}
         </div>
@@ -814,9 +822,11 @@ export default function WorkshopPage() {
                               📦 {partsCount > 0 ? `${partsCount} pieza(s)` : "Sin piezas"}
                             </span>
 
-                            <span style={{ color: partsCount > 0 ? "#f59e0b" : "#64748b", fontWeight: "800" }}>
-                              {partsCount > 0 ? `$${(partsTotal / 1000000).toFixed(1)}M COP` : ""}
-                            </span>
+                            {!isWorkshop && partsCount > 0 && (
+                              <span style={{ color: "#f59e0b", fontWeight: "800" }}>
+                                ${(partsTotal / 1000000).toFixed(1)}M COP
+                              </span>
+                            )}
 
                             {/* Indicador de Clic */}
                             <span style={{ color: "#64748b", fontSize: "0.75rem" }}>
@@ -871,29 +881,33 @@ export default function WorkshopPage() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(18, 20, 26, 0.75)", border: "1px solid rgba(168, 85, 247, 0.25)", borderRadius: "12px", padding: "1.1rem", backdropFilter: "blur(10px)" }}>
-              <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#c084fc", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                📦 Salidas Repuestos Container
-              </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: "900", color: "#c084fc", marginTop: "0.3rem" }}>
-                ${(archivedOrders.reduce((sum, o) => sum + (parseFloat(o.costo_repuestos) || 0), 0)).toLocaleString("es-CO")} COP
-              </div>
-              <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.2rem" }}>
-                Piezas instaladas de inventario
-              </div>
-            </div>
+            {!isWorkshop && (
+              <>
+                <div style={{ background: "rgba(18, 20, 26, 0.75)", border: "1px solid rgba(168, 85, 247, 0.25)", borderRadius: "12px", padding: "1.1rem", backdropFilter: "blur(10px)" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#c084fc", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    📦 Salidas Repuestos Container
+                  </div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "900", color: "#c084fc", marginTop: "0.3rem" }}>
+                    ${(archivedOrders.reduce((sum, o) => sum + (parseFloat(o.costo_repuestos) || 0), 0)).toLocaleString("es-CO")} COP
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+                    Piezas instaladas de inventario
+                  </div>
+                </div>
 
-            <div style={{ background: "rgba(18, 20, 26, 0.75)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "12px", padding: "1.1rem", backdropFilter: "blur(10px)" }}>
-              <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#34d399", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                💰 Facturación Bruta Histórica
-              </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: "900", color: "#34d399", marginTop: "0.3rem" }}>
-                ${(archivedOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0)).toLocaleString("es-CO")} COP
-              </div>
-              <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.2rem" }}>
-                Total consolidado de la flota archivada
-              </div>
-            </div>
+                <div style={{ background: "rgba(18, 20, 26, 0.75)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "12px", padding: "1.1rem", backdropFilter: "blur(10px)" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#34d399", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    💰 Facturación Bruta Histórica
+                  </div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "900", color: "#34d399", marginTop: "0.3rem" }}>
+                    ${(archivedOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0)).toLocaleString("es-CO")} COP
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+                    Total consolidado de la flota archivada
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Estado de carga o Lista de Mulas */}
@@ -1019,36 +1033,54 @@ export default function WorkshopPage() {
 
                     {/* Resumen Contable y Detalles */}
                     <div style={{ padding: "1.1rem", display: "flex", flexDirection: "column", gap: "0.85rem", flex: 1 }}>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          gap: "0.5rem",
-                          background: "rgba(10, 12, 16, 0.6)",
-                          padding: "0.75rem",
-                          borderRadius: "8px",
-                          border: "1px solid rgba(255,255,255,0.05)",
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Mano de Obra</div>
-                          <div style={{ fontSize: "0.85rem", fontWeight: "800", color: "#fbbf24" }}>
-                            ${(parseFloat(order.costo_mano_obra) || 0).toLocaleString("es-CO")}
+                      {!isWorkshop ? (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "0.5rem",
+                            background: "rgba(10, 12, 16, 0.6)",
+                            padding: "0.75rem",
+                            borderRadius: "8px",
+                            border: "1px solid rgba(255,255,255,0.05)",
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Mano de Obra</div>
+                            <div style={{ fontSize: "0.85rem", fontWeight: "800", color: "#fbbf24" }}>
+                              ${(parseFloat(order.costo_mano_obra) || 0).toLocaleString("es-CO")}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Repuestos ({partsCount})</div>
+                            <div style={{ fontSize: "0.85rem", fontWeight: "800", color: "#c084fc" }}>
+                              ${(parseFloat(order.costo_repuestos) || 0).toLocaleString("es-CO")}
+                            </div>
+                          </div>
+                          <div style={{ gridColumn: "span 2", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "0.4rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ fontSize: "0.72rem", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase" }}>Total Facturado</div>
+                            <div style={{ fontSize: "0.95rem", fontWeight: "900", color: "#34d399" }}>
+                              ${totalVal.toLocaleString("es-CO")} COP
+                            </div>
                           </div>
                         </div>
-                        <div>
-                          <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Repuestos ({partsCount})</div>
-                          <div style={{ fontSize: "0.85rem", fontWeight: "800", color: "#c084fc" }}>
-                            ${(parseFloat(order.costo_repuestos) || 0).toLocaleString("es-CO")}
-                          </div>
+                      ) : (
+                        <div
+                          style={{
+                            background: "rgba(10, 12, 16, 0.6)",
+                            padding: "0.6rem 0.75rem",
+                            borderRadius: "8px",
+                            border: "1px solid rgba(255,255,255,0.05)",
+                            fontSize: "0.75rem",
+                            color: "#94a3b8",
+                            display: "flex",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <span>⚙️ Pailería y Carrocería Finalizada</span>
+                          <span style={{ color: "#38bdf8", fontWeight: "700" }}>📦 {partsCount} repuestos</span>
                         </div>
-                        <div style={{ gridColumn: "span 2", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "0.4rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div style={{ fontSize: "0.72rem", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase" }}>Total Facturado</div>
-                          <div style={{ fontSize: "0.95rem", fontWeight: "900", color: "#34d399" }}>
-                            ${totalVal.toLocaleString("es-CO")} COP
-                          </div>
-                        </div>
-                      </div>
+                      )}
 
                       {order.descripcion && (
                         <div style={{ fontSize: "0.76rem", color: "#94a3b8", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
@@ -1091,6 +1123,26 @@ export default function WorkshopPage() {
                         >
                           🖨️ Imprimir
                         </button>
+
+                        {!isWorkshop && (
+                          <button
+                            type="button"
+                            onClick={() => setInvoiceOrderData(order)}
+                            style={{
+                              padding: "0.55rem 0.75rem",
+                              background: "rgba(245, 158, 11, 0.15)",
+                              border: "1px solid rgba(245, 158, 11, 0.35)",
+                              color: "#fbbf24",
+                              borderRadius: "8px",
+                              fontWeight: "800",
+                              fontSize: "0.75rem",
+                              cursor: "pointer",
+                            }}
+                            title="Emitir liquidación formal en PDF y WhatsApp"
+                          >
+                            📄 Factura PDF
+                          </button>
+                        )}
 
                         {order.slug && (
                           <Link
@@ -1444,6 +1496,33 @@ export default function WorkshopPage() {
                     🖨️ Ficha Parabrisas
                   </button>
 
+                  {!isWorkshop && (
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceOrderData(activeTruckDetail)}
+                      style={{
+                        flex: 1,
+                        minWidth: "135px",
+                        padding: "0.6rem 0.8rem",
+                        background: "linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(234, 88, 12, 0.2))",
+                        border: "1px solid rgba(245, 158, 11, 0.5)",
+                        color: "#f59e0b",
+                        borderRadius: "8px",
+                        fontWeight: "900",
+                        cursor: "pointer",
+                        fontSize: "0.78rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.35rem",
+                      }}
+                      title="Emitir orden de liquidación o factura proforma formal en PDF y WhatsApp"
+                    >
+                      <span>📄</span>
+                      <span>Liquidación PDF</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => handleToggleArchive(activeTruckDetail.id, !activeTruckDetail.archivado)}
@@ -1531,9 +1610,15 @@ export default function WorkshopPage() {
                           </div>
 
                           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                            <span style={{ color: "#38bdf8", fontWeight: "800" }}>
-                              ${(item.subtotal || 0).toLocaleString("es-CO")}
-                            </span>
+                            {!isWorkshop ? (
+                              <span style={{ color: "#38bdf8", fontWeight: "800" }}>
+                                ${(item.subtotal || 0).toLocaleString("es-CO")}
+                              </span>
+                            ) : (
+                              <span style={{ color: "#94a3b8", fontSize: "0.75rem", fontWeight: "700" }}>
+                                📦 Instalado
+                              </span>
+                            )}
                             <button
                               onClick={() => handleRemoveItem(activeTruckDetail.id, item.id)}
                               title="Devolver al Container"
@@ -1678,41 +1763,43 @@ export default function WorkshopPage() {
                 </div>
 
                 {/* Mano de Obra, Notas & Costo Total */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.35rem" }}>
-                      Mano de Obra ($ COP)
-                    </label>
-                    <input
-                      type="number"
-                      value={editLaborCost}
-                      onChange={(e) => setEditLaborCost(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "0.65rem",
-                        borderRadius: "8px",
-                        background: "#0a0c10",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        color: "#f8fafc",
-                        fontSize: "0.95rem",
-                        fontWeight: "900",
-                      }}
-                    />
+                <div style={{ display: "grid", gridTemplateColumns: !isWorkshop ? "1fr 1fr" : "1fr", gap: "1rem" }}>
+                  {!isWorkshop ? (
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.35rem" }}>
+                        Mano de Obra ($ COP)
+                      </label>
+                      <input
+                        type="number"
+                        value={editLaborCost}
+                        onChange={(e) => setEditLaborCost(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "0.65rem",
+                          borderRadius: "8px",
+                          background: "#0a0c10",
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          color: "#f8fafc",
+                          fontSize: "0.95rem",
+                          fontWeight: "900",
+                        }}
+                      />
 
-                    <div style={{ marginTop: "0.75rem", padding: "0.65rem", background: "rgba(245, 158, 11, 0.1)", borderRadius: "8px", border: "1px solid rgba(245, 158, 11, 0.25)" }}>
-                      <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: "700" }}>TOTAL ORDEN ACUMULADO:</div>
-                      <div style={{ color: "#f59e0b", fontSize: "1.15rem", fontWeight: "900" }}>
-                        ${((parseFloat(editLaborCost) || 0) + (activeTruckDetail.costo_repuestos || 0)).toLocaleString("es-CO")} COP
+                      <div style={{ marginTop: "0.75rem", padding: "0.65rem", background: "rgba(245, 158, 11, 0.1)", borderRadius: "8px", border: "1px solid rgba(245, 158, 11, 0.25)" }}>
+                        <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: "700" }}>TOTAL ORDEN ACUMULADO:</div>
+                        <div style={{ color: "#f59e0b", fontSize: "1.15rem", fontWeight: "900" }}>
+                          ${((parseFloat(editLaborCost) || 0) + (activeTruckDetail.costo_repuestos || 0)).toLocaleString("es-CO")} COP
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : null}
 
                   <div>
                     <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", marginBottom: "0.35rem" }}>
-                      Notas & Especificaciones
+                      Notas & Especificaciones Técnicas
                     </label>
                     <textarea
-                      rows="4"
+                      rows={!isWorkshop ? 4 : 5}
                       value={editNotes}
                       onChange={(e) => setEditNotes(e.target.value)}
                       placeholder="Medidas, calibres, instrucciones de armado..."
@@ -2098,6 +2185,14 @@ export default function WorkshopPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL OFICIAL: FACTURA PROFORMA & LIQUIDACIÓN DE ENTREGA EN PDF / WHATSAPP */}
+      {invoiceOrderData && (
+        <InvoiceModal
+          order={invoiceOrderData}
+          onClose={() => setInvoiceOrderData(null)}
+        />
       )}
 
       {/* =========================================================================

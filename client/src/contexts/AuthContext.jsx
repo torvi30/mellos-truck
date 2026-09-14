@@ -7,6 +7,15 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState(() => {
+    return localStorage.getItem("mello_user_role") || "admin";
+  });
+
+  const switchRole = (newRole) => {
+    const validRole = newRole === "workshop" ? "workshop" : "admin";
+    setRole(validRole);
+    localStorage.setItem("mello_user_role", validRole);
+  };
 
   useEffect(() => {
     if (!auth) {
@@ -52,7 +61,18 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        role,
+        switchRole,
+        isManager: role === "admin",
+        isWorkshop: role === "workshop",
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
