@@ -4,12 +4,20 @@ import { Link } from "react-router-dom";
 const API_BASE = "http://localhost:4000/api";
 
 const STAGES = [
-  { id: "Ingreso", title: "INGRESO", subtitle: "Diagnóstico & Desarme", color: "#f59e0b", dotColor: "#fbbf24" },
-  { id: "Taller", title: "TALLER", subtitle: "Pailería & Acero Inox", color: "#f97316", dotColor: "#fb923c" },
-  { id: "Pintura", title: "PINTURA", subtitle: "Poliuretano & Brillo", color: "#a855f7", dotColor: "#c084fc" },
-  { id: "Terminado", title: "TERMINADO", subtitle: "Control Calidad", color: "#10b981", dotColor: "#34d399" },
-  { id: "Entregado", title: "ENTREGADO", subtitle: "Despachada a Ruta", color: "#38bdf8", dotColor: "#60a5fa" },
+  { id: "Ingreso", title: "INGRESO", subtitle: "Diagnóstico & Desarme", color: "#f59e0b", dotColor: "#fbbf24", progress: 20, icon: "📋" },
+  { id: "Taller", title: "TALLER", subtitle: "Pailería & Acero Inox", color: "#f97316", dotColor: "#fb923c", progress: 45, icon: "⚡" },
+  { id: "Pintura", title: "PINTURA", subtitle: "Poliuretano & Brillo", color: "#a855f7", dotColor: "#c084fc", progress: 70, icon: "🎨" },
+  { id: "Terminado", title: "TERMINADO", subtitle: "Control Calidad & Showroom", color: "#10b981", dotColor: "#34d399", progress: 90, icon: "💎" },
+  { id: "Entregado", title: "ENTREGADO", subtitle: "Despachada a Ruta", color: "#38bdf8", dotColor: "#60a5fa", progress: 100, icon: "🚚" },
 ];
+
+const DEFAULT_TRUCK_IMAGES = {
+  Kenworth: "/images/showroom/kenworth_after.jpg",
+  Mack: "/images/showroom/mack_truck_custom.jpg",
+  Peterbilt: "/images/showroom/peterbilt_truck_custom.jpg",
+  International: "/images/showroom/detail_bumper_chrome.jpg",
+  Freightliner: "/images/showroom/kenworth_before.jpg",
+};
 
 export default function WorkshopPage() {
   const [orders, setOrders] = useState([]);
@@ -30,14 +38,14 @@ export default function WorkshopPage() {
     descripcion: "",
   });
 
-  // Modal Detalle & Repuestos de la Mula
+  // Modal Detalle & Repuestos
   const [selectedOrderForParts, setSelectedOrderForParts] = useState(null);
   const [assignForm, setAssignForm] = useState({
     productId: "",
     cantidad: 1,
   });
 
-  // Notificaciones Toast
+  // Toast
   const [feedback, setFeedback] = useState(null);
 
   const showNotification = (msg, type = "success") => {
@@ -63,7 +71,7 @@ export default function WorkshopPage() {
         setProducts(dataProd.products || []);
       }
     } catch (err) {
-      console.warn("Error cargando datos del taller:", err);
+      console.warn("Error cargando datos:", err);
     } finally {
       setLoading(false);
     }
@@ -73,11 +81,10 @@ export default function WorkshopPage() {
     loadData();
   }, []);
 
-  // Crear orden de trabajo
   const handleCreateOrder = async (e) => {
     e.preventDefault();
     if (!createForm.cliente || !createForm.placa || !createForm.marca) {
-      showNotification("Por favor ingresa cliente, placa y marca", "error");
+      showNotification("Ingresa cliente, placa y marca", "error");
       return;
     }
 
@@ -90,14 +97,14 @@ export default function WorkshopPage() {
 
       const data = await res.json();
       if (res.ok) {
-        showNotification(data.message || "Mula ingresada exitosamente");
+        showNotification(data.message || "Mula ingresada al taller");
         setShowCreateModal(false);
         setCreateForm({
           cliente: "",
           telefono: "",
           placa: "",
           marca: "Kenworth",
-          linea: "",
+          linea: "T800 Aerocab",
           color: "",
           costo_mano_obra: "2000000",
           descripcion: "",
@@ -111,7 +118,6 @@ export default function WorkshopPage() {
     }
   };
 
-  // Mover de fase
   const handleMoveStage = async (orderId, newStage) => {
     try {
       const res = await fetch(`${API_BASE}/work-orders/${orderId}/status`, {
@@ -124,15 +130,12 @@ export default function WorkshopPage() {
       if (res.ok) {
         showNotification(data.message);
         loadData();
-      } else {
-        showNotification(data.message || "Error al mover estado", "error");
       }
     } catch (err) {
       showNotification("Error de conexión al servidor", "error");
     }
   };
 
-  // Abrir modal de repuestos
   const openPartsModal = (order) => {
     setSelectedOrderForParts(order);
     setAssignForm({
@@ -141,7 +144,6 @@ export default function WorkshopPage() {
     });
   };
 
-  // Asignar pieza y descontar de inventario
   const handleAssignItem = async (e) => {
     e.preventDefault();
     if (!selectedOrderForParts || !assignForm.productId) return;
@@ -169,7 +171,6 @@ export default function WorkshopPage() {
     }
   };
 
-  // Retirar pieza y reintegrar al inventario
   const handleRemoveItem = async (orderId, itemId) => {
     try {
       const res = await fetch(`${API_BASE}/work-orders/${orderId}/items/${itemId}`, {
@@ -181,15 +182,12 @@ export default function WorkshopPage() {
         showNotification(data.message);
         setSelectedOrderForParts(data.order);
         loadData();
-      } else {
-        showNotification(data.message || "Error al retirar pieza", "error");
       }
     } catch (err) {
-      showNotification("Error de conexión al servidor", "error");
+      showNotification("Error al retirar pieza", "error");
     }
   };
 
-  // Eliminar orden
   const handleDeleteOrder = async (orderId, plate) => {
     if (!window.confirm(`¿Seguro de retirar la orden de la mula ${plate}? Las piezas volverán al inventario.`)) {
       return;
@@ -209,7 +207,6 @@ export default function WorkshopPage() {
     }
   };
 
-  // Filtrado simple por búsqueda
   const filteredOrders = orders.filter((o) => {
     const term = search.toLowerCase().trim();
     if (!term) return true;
@@ -221,15 +218,6 @@ export default function WorkshopPage() {
     );
   });
 
-  // Métricas inline limpias (sin cajas pesadas)
-  const totalMulas = orders.length;
-  const inWorkshop = orders.filter((o) => o.estado === "Taller").length;
-  const inPaint = orders.filter((o) => o.estado === "Pintura").length;
-  const finished = orders.filter((o) => o.estado === "Terminado" || o.estado === "Entregado").length;
-
-  const selectedProduct = products.find((p) => p.id === parseInt(assignForm.productId, 10));
-
-  // Función para formatear el título limpio sin duplicar la marca
   const getCleanTruckTitle = (order) => {
     if (!order.linea) return order.marca;
     if (order.linea.toLowerCase().includes(order.marca.toLowerCase())) {
@@ -238,9 +226,30 @@ export default function WorkshopPage() {
     return `${order.marca} ${order.linea}`;
   };
 
+  const getTruckImage = (order) => {
+    if (order.placa === "WTL-892") return "/images/showroom/kenworth_after.jpg";
+    if (order.placa === "SZZ-514") return "/images/showroom/mack_truck_custom.jpg";
+    if (order.placa === "UFT-621") return "/images/showroom/peterbilt_truck_custom.jpg";
+    if (order.placa === "XVZ-409") return "/images/showroom/detail_visera_cornetas.jpg";
+    if (order.placa === "SKR-901") return "/images/showroom/kenworth_before.jpg";
+    if (order.placa === "SKM-302") return "/images/showroom/detail_bumper_chrome.jpg";
+    return DEFAULT_TRUCK_IMAGES[order.marca] || "/images/showroom/kenworth_after.jpg";
+  };
+
+  const selectedProduct = products.find((p) => p.id === parseInt(assignForm.productId, 10));
+
   return (
-    <div style={{ color: "#f8fafc", padding: "1.2rem 1.5rem", height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Toast Feedback */}
+    <div
+      style={{
+        color: "#f8fafc",
+        padding: "1.2rem 1.6rem",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        background: "radial-gradient(circle at 40% -10%, rgba(245, 158, 11, 0.08) 0%, transparent 60%), radial-gradient(circle at 80% 90%, rgba(56, 189, 248, 0.05) 0%, transparent 50%)",
+      }}
+    >
+      {/* Toast Notification */}
       {feedback && (
         <div
           style={{
@@ -266,7 +275,7 @@ export default function WorkshopPage() {
         </div>
       )}
 
-      {/* HEADER COMPACTO & ELEGANTE (Ahorra más de 200px verticales) */}
+      {/* HEADER ULTRA PREMIUM: Command Center */}
       <header
         style={{
           display: "flex",
@@ -275,60 +284,76 @@ export default function WorkshopPage() {
           flexWrap: "wrap",
           gap: "1rem",
           marginBottom: "1.2rem",
-          paddingBottom: "1rem",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          padding: "1.1rem 1.4rem",
+          background: "linear-gradient(135deg, rgba(22, 24, 30, 0.85), rgba(12, 14, 18, 0.95))",
+          backdropFilter: "blur(20px)",
+          borderRadius: "14px",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
-            <h1 style={{ fontSize: "1.5rem", fontWeight: "900", margin: 0, letterSpacing: "0.02em", color: "#f8fafc" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+            <h1
+              style={{
+                fontSize: "1.6rem",
+                fontWeight: "900",
+                margin: 0,
+                letterSpacing: "0.04em",
+                background: "linear-gradient(90deg, #f59e0b, #fbbf24, #f97316)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                textTransform: "uppercase",
+              }}
+            >
               Taller Central & Mulas
             </h1>
             <span
               style={{
-                background: "rgba(245, 158, 11, 0.12)",
+                background: "rgba(245, 158, 11, 0.15)",
                 color: "#f59e0b",
-                border: "1px solid rgba(245, 158, 11, 0.25)",
-                padding: "0.15rem 0.5rem",
-                borderRadius: "6px",
+                border: "1px solid rgba(245, 158, 11, 0.35)",
+                padding: "0.2rem 0.6rem",
+                borderRadius: "20px",
                 fontSize: "0.72rem",
                 fontWeight: "800",
+                letterSpacing: "0.08em",
               }}
             >
-              TRAZABILIDAD
+              KANBAN V3 PRO
             </span>
           </div>
 
-          {/* Cinta de resumen minimalista (en vez de 5 cajas gigantescas) */}
-          <div style={{ display: "flex", alignItems: "center", gap: "1.2rem", marginTop: "0.4rem", fontSize: "0.82rem", color: "#94a3b8" }}>
-            <span><strong>{totalMulas}</strong> mulas en patio</span>
+          {/* Ribbon con métricas en tiempo real */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", marginTop: "0.4rem", fontSize: "0.82rem", color: "#94a3b8" }}>
+            <span style={{ color: "#f8fafc", fontWeight: "700" }}>🚛 {orders.length} Naves en Patio</span>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>•</span>
-            <span style={{ color: "#fb923c" }}><strong>{inWorkshop}</strong> en armado</span>
+            <span style={{ color: "#fb923c" }}>⚙️ {orders.filter((o) => o.estado === "Taller").length} Pailería</span>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>•</span>
-            <span style={{ color: "#c084fc" }}><strong>{inPaint}</strong> en pintura</span>
+            <span style={{ color: "#c084fc" }}>🎨 {orders.filter((o) => o.estado === "Pintura").length} Pintura</span>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>•</span>
-            <span style={{ color: "#34d399" }}><strong>{finished}</strong> listas</span>
+            <span style={{ color: "#34d399" }}>💎 {orders.filter((o) => o.estado === "Terminado" || o.estado === "Entregado").length} Listas / Showroom</span>
           </div>
         </div>
 
         {/* Acciones del Header */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-          {/* Buscador minimalista */}
           <div style={{ position: "relative" }}>
             <input
               type="text"
-              placeholder="🔍 Buscar placa, cliente..."
+              placeholder="🔍 Buscar placa, cliente, marca..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                width: "220px",
-                padding: "0.5rem 0.9rem",
-                borderRadius: "8px",
-                background: "rgba(18, 19, 24, 0.8)",
+                width: "250px",
+                padding: "0.6rem 1rem",
+                borderRadius: "10px",
+                background: "rgba(10, 12, 16, 0.85)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
                 color: "#fff",
                 fontSize: "0.85rem",
                 outline: "none",
+                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)",
               }}
             />
           </div>
@@ -336,53 +361,61 @@ export default function WorkshopPage() {
           <Link
             to="/admin/inventory"
             style={{
-              padding: "0.55rem 0.9rem",
-              background: "rgba(56, 189, 248, 0.08)",
+              padding: "0.6rem 1rem",
+              background: "rgba(56, 189, 248, 0.1)",
               color: "#38bdf8",
-              border: "1px solid rgba(56, 189, 248, 0.25)",
-              borderRadius: "8px",
-              fontWeight: "700",
+              border: "1px solid rgba(56, 189, 248, 0.3)",
+              borderRadius: "10px",
+              fontWeight: "800",
               fontSize: "0.85rem",
               textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              transition: "all 0.2s",
             }}
           >
-            📦 Container
+            📦 Tienda Container
           </Link>
 
           <button
             onClick={() => setShowCreateModal(true)}
             style={{
-              padding: "0.55rem 1.1rem",
-              background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              padding: "0.65rem 1.3rem",
+              background: "linear-gradient(135deg, #f59e0b, #ea580c)",
               color: "#000",
               border: "none",
-              borderRadius: "8px",
-              fontWeight: "800",
-              fontSize: "0.85rem",
+              borderRadius: "10px",
+              fontWeight: "900",
+              fontSize: "0.88rem",
               cursor: "pointer",
-              boxShadow: "0 3px 12px rgba(245, 158, 11, 0.3)",
+              boxShadow: "0 4px 18px rgba(245, 158, 11, 0.4)",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              letterSpacing: "0.02em",
             }}
           >
-            + Ingresar Mula
+            <span style={{ fontSize: "1.1rem" }}>+</span> Ingresar Mula
           </button>
         </div>
       </header>
 
-      {/* KANBAN BOARD 100% HORIZONTAL (Estilo Linear / Jira de alta gama) */}
+      {/* KANBAN BOARD ULTRA-PRO (5 Columnas con identidad visual y tarjetas cinemáticas) */}
       {loading ? (
         <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>
-          Cargando tablero operativo...
+          Cargando naves en taller...
         </div>
       ) : (
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(5, minmax(270px, 1fr))",
-            gap: "1rem",
+            gridTemplateColumns: "repeat(5, minmax(285px, 1fr))",
+            gap: "1.1rem",
             flex: 1,
             overflowX: "auto",
             overflowY: "hidden",
-            paddingBottom: "0.5rem",
+            paddingBottom: "0.6rem",
           }}
         >
           {STAGES.map((stage) => {
@@ -392,64 +425,64 @@ export default function WorkshopPage() {
               <div
                 key={stage.id}
                 style={{
-                  background: "rgba(18, 20, 26, 0.65)",
-                  backdropFilter: "blur(12px)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.06)",
+                  background: "linear-gradient(180deg, rgba(20, 22, 28, 0.8) 0%, rgba(12, 14, 18, 0.9) 100%)",
+                  backdropFilter: "blur(16px)",
+                  borderRadius: "14px",
+                  border: `1px solid ${stage.color}22`,
+                  borderTop: `3px solid ${stage.color}`,
                   display: "flex",
                   flexDirection: "column",
-                  maxHeight: "calc(100vh - 210px)",
-                  minHeight: "450px",
+                  maxHeight: "calc(100vh - 200px)",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
                 }}
               >
-                {/* Cabecera de Columna */}
+                {/* Header de Fase */}
                 <div
                   style={{
-                    padding: "0.8rem 1rem",
+                    padding: "0.9rem 1.1rem",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                    borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+                    background: `linear-gradient(90deg, ${stage.color}11, transparent)`,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span
-                      style={{
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "50%",
-                        background: stage.dotColor,
-                        boxShadow: `0 0 8px ${stage.dotColor}`,
-                      }}
-                    ></span>
-                    <span style={{ fontSize: "0.85rem", fontWeight: "800", color: "#f8fafc", letterSpacing: "0.03em" }}>
-                      {stage.title}
-                    </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                    <span style={{ fontSize: "1rem" }}>{stage.icon}</span>
+                    <div>
+                      <div style={{ fontSize: "0.88rem", fontWeight: "900", color: stage.color, letterSpacing: "0.06em" }}>
+                        {stage.title}
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                        {stage.subtitle}
+                      </div>
+                    </div>
                   </div>
 
                   <span
                     style={{
-                      background: "rgba(255,255,255,0.06)",
-                      color: "#94a3b8",
-                      fontSize: "0.75rem",
-                      fontWeight: "700",
-                      padding: "0.15rem 0.5rem",
-                      borderRadius: "10px",
+                      background: `${stage.color}22`,
+                      color: stage.color,
+                      fontSize: "0.78rem",
+                      fontWeight: "900",
+                      padding: "0.2rem 0.6rem",
+                      borderRadius: "12px",
+                      border: `1px solid ${stage.color}44`,
                     }}
                   >
                     {stageOrders.length}
                   </span>
                 </div>
 
-                {/* Lista de Tarjetas con Scroll Interno Independiente */}
+                {/* Contenedor de Tarjetas */}
                 <div
                   style={{
                     flex: 1,
                     overflowY: "auto",
-                    padding: "0.8rem",
+                    padding: "0.9rem",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "0.8rem",
+                    gap: "1rem",
                   }}
                 >
                   {stageOrders.length === 0 ? (
@@ -457,15 +490,19 @@ export default function WorkshopPage() {
                       style={{
                         margin: "auto 0",
                         textAlign: "center",
-                        padding: "2rem 1rem",
+                        padding: "2.5rem 1rem",
                         color: "#475569",
-                        fontSize: "0.8rem",
+                        fontSize: "0.82rem",
+                        border: "1px dashed rgba(255,255,255,0.06)",
+                        borderRadius: "10px",
                       }}
                     >
-                      Sin mulas en esta fase
+                      <div style={{ fontSize: "1.5rem", marginBottom: "0.3rem", opacity: 0.5 }}>🚛</div>
+                      Sin naves en esta fase
                     </div>
                   ) : (
                     stageOrders.map((order) => {
+                      const truckImg = getTruckImage(order);
                       const partsCount = (order.items || []).length;
                       const partsTotal = order.costo_repuestos || 0;
 
@@ -473,203 +510,290 @@ export default function WorkshopPage() {
                         <div
                           key={order.id}
                           style={{
-                            background: "#16171d",
-                            borderRadius: "10px",
+                            background: "#14161c",
+                            borderRadius: "12px",
                             border: "1px solid rgba(255, 255, 255, 0.08)",
-                            padding: "0.9rem",
+                            overflow: "hidden",
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
                             display: "flex",
                             flexDirection: "column",
-                            gap: "0.65rem",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
-                            transition: "transform 0.15s ease, border-color 0.15s ease",
+                            transition: "all 0.25s ease",
+                            position: "relative",
                           }}
                         >
-                          {/* Fila 1: Placa Metálica Colombiana 3D & Botón eliminar */}
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            {/* Auténtica Placa Colombiana Troquelada */}
+                          {/* BANNER FOTOGRÁFICO DE LA MULA (Nivel Ultra PRO) */}
+                          <div
+                            style={{
+                              position: "relative",
+                              height: "100px",
+                              width: "100%",
+                              overflow: "hidden",
+                              background: "#000",
+                            }}
+                          >
+                            <img
+                              src={truckImg}
+                              alt={order.placa}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                objectPosition: "center",
+                                filter: "brightness(0.85) contrast(1.1)",
+                              }}
+                            />
+
+                            {/* Gradiente de Oscuridad para Contraste */}
                             <div
                               style={{
-                                background: "linear-gradient(180deg, #facc15 0%, #eab308 100%)",
+                                position: "absolute",
+                                inset: 0,
+                                background: "linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(20,22,28,0.95) 100%)",
+                              }}
+                            ></div>
+
+                            {/* Placa Colombiana Troquelada Metálica */}
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "8px",
+                                left: "10px",
+                                background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
                                 color: "#000",
                                 fontWeight: "900",
-                                fontSize: "0.88rem",
+                                fontSize: "0.85rem",
                                 letterSpacing: "0.14em",
-                                padding: "0.15rem 0.55rem",
+                                padding: "0.18rem 0.6rem",
                                 borderRadius: "4px",
                                 border: "1.5px solid #000",
-                                boxShadow: "0 2px 5px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.4)",
-                                position: "relative",
-                                display: "inline-flex",
+                                boxShadow: "0 3px 8px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.6)",
+                                display: "flex",
+                                flexDirection: "column",
                                 alignItems: "center",
-                                justifyContent: "center",
-                                minWidth: "82px",
+                                lineHeight: "1",
                               }}
                             >
-                              {/* Remaches metálicos superiores */}
-                              <span
-                                style={{
-                                  position: "absolute",
-                                  top: "2px",
-                                  left: "4px",
-                                  width: "3px",
-                                  height: "3px",
-                                  borderRadius: "50%",
-                                  background: "#333",
-                                }}
-                              ></span>
-                              <span
-                                style={{
-                                  position: "absolute",
-                                  top: "2px",
-                                  right: "4px",
-                                  width: "3px",
-                                  height: "3px",
-                                  borderRadius: "50%",
-                                  background: "#333",
-                                }}
-                              ></span>
-                              {order.placa}
+                              <span>{order.placa}</span>
+                              <span style={{ fontSize: "0.42rem", letterSpacing: "0.2em", fontWeight: "800", color: "#333", marginTop: "1px" }}>
+                                COLOMBIA
+                              </span>
                             </div>
 
+                            {/* Tag de Marca del Camión */}
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "8px",
+                                right: "10px",
+                                background: "rgba(0,0,0,0.7)",
+                                backdropFilter: "blur(6px)",
+                                border: "1px solid rgba(255,255,255,0.2)",
+                                color: "#f8fafc",
+                                fontSize: "0.68rem",
+                                fontWeight: "800",
+                                padding: "0.2rem 0.5rem",
+                                borderRadius: "4px",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {order.marca}
+                            </div>
+
+                            {/* Botón rápido para retirar del taller */}
                             <button
                               onClick={() => handleDeleteOrder(order.id, order.placa)}
                               title="Retirar orden"
                               style={{
-                                background: "transparent",
+                                position: "absolute",
+                                bottom: "6px",
+                                right: "10px",
+                                background: "rgba(0,0,0,0.6)",
                                 border: "none",
-                                color: "#475569",
+                                color: "#94a3b8",
+                                borderRadius: "50%",
+                                width: "20px",
+                                height: "20px",
                                 cursor: "pointer",
-                                fontSize: "0.75rem",
+                                fontSize: "0.7rem",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
                               }}
                             >
                               ✕
                             </button>
                           </div>
 
-                          {/* Fila 2: Camión & Cliente (Limpio, sin duplicados) */}
-                          <div>
-                            <div style={{ fontWeight: "800", color: "#f1f5f9", fontSize: "0.9rem" }}>
-                              {getCleanTruckTitle(order)}
+                          {/* CONTENIDO DE LA TARJETA */}
+                          <div style={{ padding: "0.9rem", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                            {/* Línea & Cliente */}
+                            <div>
+                              <h4 style={{ margin: 0, fontSize: "0.92rem", fontWeight: "900", color: "#f8fafc" }}>
+                                {getCleanTruckTitle(order)}
+                              </h4>
+                              <div style={{ fontSize: "0.78rem", color: "#94a3b8", marginTop: "2px", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                <span>👤 {order.cliente}</span>
+                                {order.telefono && (
+                                  <a
+                                    href={`https://wa.me/${order.telefono.replace(/[^0-9]/g, "")}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ color: "#22c55e", textDecoration: "none", fontWeight: "700" }}
+                                  >
+                                    💬
+                                  </a>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ fontSize: "0.76rem", color: "#94a3b8", marginTop: "2px" }}>
-                              👤 {order.cliente}
+
+                            {/* Barra de Progreso Neón */}
+                            <div>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "#64748b", marginBottom: "3px" }}>
+                                <span>Avance en Taller</span>
+                                <span style={{ color: stage.color, fontWeight: "800" }}>{stage.progress}%</span>
+                              </div>
+                              <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px", overflow: "hidden" }}>
+                                <div
+                                  style={{
+                                    height: "100%",
+                                    width: `${stage.progress}%`,
+                                    background: `linear-gradient(90deg, ${stage.color}, ${stage.dotColor})`,
+                                    boxShadow: `0 0 8px ${stage.color}`,
+                                  }}
+                                ></div>
+                              </div>
                             </div>
-                          </div>
 
-                          {/* Fila 3: Chip de Piezas del Container (Click para gestionar) */}
-                          <div
-                            onClick={() => openPartsModal(order)}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              background: "rgba(56, 189, 248, 0.06)",
-                              border: "1px solid rgba(56, 189, 248, 0.2)",
-                              borderRadius: "6px",
-                              padding: "0.4rem 0.6rem",
-                              fontSize: "0.75rem",
-                              cursor: "pointer",
-                              transition: "background 0.2s",
-                            }}
-                          >
-                            <span style={{ color: "#38bdf8", fontWeight: "700" }}>
-                              📦 {partsCount > 0 ? `${partsCount} pieza(s)` : "Sin piezas"}
-                            </span>
-                            <span style={{ color: "#94a3b8", fontWeight: "600" }}>
-                              {partsCount > 0 ? `$${(partsTotal / 1000000).toFixed(1)}M` : "+ Asignar"}
-                            </span>
-                          </div>
+                            {/* Detalle o Repuestos Asignados */}
+                            <div
+                              onClick={() => openPartsModal(order)}
+                              style={{
+                                background: "rgba(56, 189, 248, 0.06)",
+                                border: "1px solid rgba(56, 189, 248, 0.2)",
+                                borderRadius: "8px",
+                                padding: "0.5rem 0.7rem",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                cursor: "pointer",
+                                transition: "all 0.2s",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.76rem" }}>
+                                <span>📦</span>
+                                <span style={{ color: "#38bdf8", fontWeight: "800" }}>
+                                  {partsCount > 0 ? `${partsCount} Pieza(s) Container` : "Sin piezas del Container"}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: "0.74rem", fontWeight: "800", color: partsCount > 0 ? "#f59e0b" : "#64748b" }}>
+                                {partsCount > 0 ? `$${(partsTotal / 1000000).toFixed(1)}M` : "+ Asignar"}
+                              </span>
+                            </div>
 
-                          {/* Fila 4: Acciones si está Terminado o Entregado */}
-                          {(order.estado === "Terminado" || order.estado === "Entregado") && order.slug && (
-                            <div style={{ display: "flex", gap: "0.4rem" }}>
-                              <Link
-                                to={`/galeria/${order.slug}`}
-                                target="_blank"
-                                style={{
-                                  flex: 1,
-                                  padding: "0.35rem",
-                                  background: "rgba(16, 185, 129, 0.15)",
-                                  border: "1px solid rgba(16, 185, 129, 0.3)",
-                                  color: "#34d399",
-                                  borderRadius: "6px",
-                                  fontSize: "0.72rem",
-                                  fontWeight: "800",
-                                  textAlign: "center",
-                                  textDecoration: "none",
-                                }}
-                              >
-                                ⚡ Showroom
-                              </Link>
-                              {order.whatsappShareUrl && (
-                                <a
-                                  href={order.whatsappShareUrl}
+                            {/* Acciones Showroom & WhatsApp si está terminado */}
+                            {(order.estado === "Terminado" || order.estado === "Entregado") && order.slug && (
+                              <div style={{ display: "flex", gap: "0.4rem" }}>
+                                <Link
+                                  to={`/galeria/${order.slug}`}
                                   target="_blank"
-                                  rel="noopener noreferrer"
                                   style={{
                                     flex: 1,
-                                    padding: "0.35rem",
-                                    background: "#25d366",
-                                    color: "#000",
-                                    borderRadius: "6px",
-                                    fontSize: "0.72rem",
+                                    padding: "0.4rem 0.6rem",
+                                    background: "rgba(16, 185, 129, 0.15)",
+                                    border: "1px solid rgba(16, 185, 129, 0.35)",
+                                    color: "#34d399",
+                                    borderRadius: "8px",
+                                    fontSize: "0.74rem",
                                     fontWeight: "800",
                                     textAlign: "center",
                                     textDecoration: "none",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "0.3rem",
                                   }}
                                 >
-                                  💬 WhatsApp
-                                </a>
+                                  ⚡ Showroom 4K
+                                </Link>
+
+                                {order.whatsappShareUrl && (
+                                  <a
+                                    href={order.whatsappShareUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      flex: 1,
+                                      padding: "0.4rem 0.6rem",
+                                      background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                                      color: "#000",
+                                      borderRadius: "8px",
+                                      fontSize: "0.74rem",
+                                      fontWeight: "900",
+                                      textAlign: "center",
+                                      textDecoration: "none",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      gap: "0.3rem",
+                                      boxShadow: "0 2px 8px rgba(34, 197, 94, 0.3)",
+                                    }}
+                                  >
+                                    💬 WhatsApp
+                                  </a>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Botones de Transición de Fase */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "0.3rem" }}>
+                              {stage.id !== "Ingreso" && (
+                                <button
+                                  onClick={() => {
+                                    const idx = STAGES.findIndex((s) => s.id === stage.id);
+                                    if (idx > 0) handleMoveStage(order.id, STAGES[idx - 1].id);
+                                  }}
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    color: "#64748b",
+                                    fontSize: "0.74rem",
+                                    cursor: "pointer",
+                                    fontWeight: "700",
+                                    padding: "0.2rem 0.4rem",
+                                  }}
+                                >
+                                  ◀ Volver
+                                </button>
+                              )}
+
+                              {stage.id !== "Entregado" ? (
+                                <button
+                                  onClick={() => {
+                                    const idx = STAGES.findIndex((s) => s.id === stage.id);
+                                    if (idx < STAGES.length - 1) handleMoveStage(order.id, STAGES[idx + 1].id);
+                                  }}
+                                  style={{
+                                    marginLeft: "auto",
+                                    padding: "0.45rem 0.9rem",
+                                    borderRadius: "8px",
+                                    background: `linear-gradient(135deg, ${stage.color}, ${stage.dotColor})`,
+                                    border: "none",
+                                    color: "#000",
+                                    fontSize: "0.76rem",
+                                    fontWeight: "900",
+                                    cursor: "pointer",
+                                    boxShadow: `0 2px 10px ${stage.color}55`,
+                                    letterSpacing: "0.02em",
+                                  }}
+                                >
+                                  ➔ Pasar a {STAGES[STAGES.findIndex((s) => s.id === stage.id) + 1]?.title}
+                                </button>
+                              ) : (
+                                <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "#38bdf8", fontWeight: "800" }}>
+                                  ✓ Despachada a Carretera
+                                </span>
                               )}
                             </div>
-                          )}
-
-                          {/* Fila 5: Botones de Avance de Estado */}
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "0.3rem" }}>
-                            {stage.id !== "Ingreso" && (
-                              <button
-                                onClick={() => {
-                                  const idx = STAGES.findIndex((s) => s.id === stage.id);
-                                  if (idx > 0) handleMoveStage(order.id, STAGES[idx - 1].id);
-                                }}
-                                style={{
-                                  background: "transparent",
-                                  border: "none",
-                                  color: "#64748b",
-                                  fontSize: "0.72rem",
-                                  cursor: "pointer",
-                                  fontWeight: "600",
-                                }}
-                              >
-                                ◀ Volver
-                              </button>
-                            )}
-
-                            {stage.id !== "Entregado" ? (
-                              <button
-                                onClick={() => {
-                                  const idx = STAGES.findIndex((s) => s.id === stage.id);
-                                  if (idx < STAGES.length - 1) handleMoveStage(order.id, STAGES[idx + 1].id);
-                                }}
-                                style={{
-                                  marginLeft: "auto",
-                                  padding: "0.35rem 0.75rem",
-                                  borderRadius: "6px",
-                                  background: "rgba(255, 255, 255, 0.08)",
-                                  border: "1px solid rgba(255, 255, 255, 0.15)",
-                                  color: "#f8fafc",
-                                  fontSize: "0.75rem",
-                                  fontWeight: "700",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                Pasar a {STAGES[STAGES.findIndex((s) => s.id === stage.id) + 1]?.title} ➔
-                              </button>
-                            ) : (
-                              <span style={{ marginLeft: "auto", fontSize: "0.72rem", color: "#38bdf8", fontWeight: "700" }}>
-                                ✓ Despachada
-                              </span>
-                            )}
                           </div>
                         </div>
                       );
@@ -682,14 +806,14 @@ export default function WorkshopPage() {
         </div>
       )}
 
-      {/* MODAL MODERNO: Detalle de la Mula & Gestión de Piezas del Container */}
+      {/* MODAL DETALLADO DE REPUESTOS DEL CONTAINER */}
       {selectedOrderForParts && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(8px)",
+            backdropFilter: "blur(12px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -699,33 +823,32 @@ export default function WorkshopPage() {
         >
           <div
             style={{
-              background: "#181920",
-              border: "1px solid rgba(56, 189, 248, 0.3)",
+              background: "#161820",
+              border: "1px solid rgba(56, 189, 248, 0.35)",
               borderRadius: "16px",
               padding: "2rem",
               width: "100%",
-              maxWidth: "520px",
-              boxShadow: "0 25px 50px rgba(0,0,0,0.8)",
+              maxWidth: "540px",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
             }}
           >
-            {/* Header del Modal */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.2rem" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                  <div
+                  <span
                     style={{
                       background: "#facc15",
                       color: "#000",
                       fontWeight: "900",
                       fontSize: "0.9rem",
-                      padding: "0.15rem 0.5rem",
+                      padding: "0.18rem 0.55rem",
                       borderRadius: "4px",
-                      border: "1px solid #000",
+                      border: "1.5px solid #000",
                     }}
                   >
                     {selectedOrderForParts.placa}
-                  </div>
-                  <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: "800", color: "#f8fafc" }}>
+                  </span>
+                  <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: "900", color: "#f8fafc" }}>
                     {getCleanTruckTitle(selectedOrderForParts)}
                   </h3>
                 </div>
@@ -742,18 +865,18 @@ export default function WorkshopPage() {
               </button>
             </div>
 
-            {/* Lista de Repuestos Asignados Actualmente */}
+            {/* Lista de Piezas Asignadas */}
             <div style={{ marginBottom: "1.4rem" }}>
-              <div style={{ fontSize: "0.8rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.6rem" }}>
-                Piezas Asignadas del Container ({selectedOrderForParts.items ? selectedOrderForParts.items.length : 0})
+              <div style={{ fontSize: "0.78rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.6rem" }}>
+                Piezas Asignadas ({selectedOrderForParts.items ? selectedOrderForParts.items.length : 0})
               </div>
 
               {(!selectedOrderForParts.items || selectedOrderForParts.items.length === 0) ? (
                 <div style={{ padding: "1rem", textAlign: "center", background: "rgba(0,0,0,0.25)", borderRadius: "8px", color: "#64748b", fontSize: "0.85rem" }}>
-                  No hay repuestos cargados a esta mula todavía.
+                  No hay repuestos asignados todavía.
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "160px", overflowY: "auto" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "170px", overflowY: "auto" }}>
                   {selectedOrderForParts.items.map((item) => (
                     <div
                       key={item.id}
@@ -761,19 +884,19 @@ export default function WorkshopPage() {
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
-                        padding: "0.5rem 0.8rem",
+                        padding: "0.55rem 0.8rem",
                         background: "rgba(0,0,0,0.3)",
-                        borderRadius: "6px",
+                        borderRadius: "8px",
                         border: "1px solid rgba(255,255,255,0.05)",
                         fontSize: "0.85rem",
                       }}
                     >
                       <div>
-                        <span style={{ color: "#f59e0b", fontWeight: "800" }}>{item.cantidad}x</span>{" "}
-                        <span style={{ color: "#f8fafc" }}>{item.nombre}</span>
+                        <span style={{ color: "#f59e0b", fontWeight: "900" }}>{item.cantidad}x</span>{" "}
+                        <span style={{ color: "#f8fafc", fontWeight: "600" }}>{item.nombre}</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                        <span style={{ color: "#38bdf8", fontWeight: "700" }}>
+                        <span style={{ color: "#38bdf8", fontWeight: "800" }}>
                           ${(item.subtotal || 0).toLocaleString("es-CO")}
                         </span>
                         <button
@@ -785,8 +908,9 @@ export default function WorkshopPage() {
                             color: "#ef4444",
                             borderRadius: "4px",
                             cursor: "pointer",
-                            padding: "0.2rem 0.4rem",
+                            padding: "0.2rem 0.45rem",
                             fontSize: "0.75rem",
+                            fontWeight: "800",
                           }}
                         >
                           ✕
@@ -802,21 +926,21 @@ export default function WorkshopPage() {
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  paddingTop: "0.6rem",
-                  marginTop: "0.6rem",
+                  paddingTop: "0.7rem",
+                  marginTop: "0.7rem",
                   borderTop: "1px dashed rgba(255,255,255,0.1)",
-                  fontSize: "0.85rem",
-                  fontWeight: "800",
+                  fontSize: "0.9rem",
+                  fontWeight: "900",
                 }}
               >
-                <span style={{ color: "#94a3b8" }}>Total Repuestos:</span>
+                <span style={{ color: "#94a3b8" }}>Total Repuestos Container:</span>
                 <span style={{ color: "#38bdf8" }}>
                   ${(selectedOrderForParts.costo_repuestos || 0).toLocaleString("es-CO")} COP
                 </span>
               </div>
             </div>
 
-            {/* Asignar Nueva Pieza (Formulario Rápido) */}
+            {/* Asignar Nueva Pieza */}
             <form onSubmit={handleAssignItem} style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.2rem" }}>
               <div style={{ fontSize: "0.8rem", color: "#38bdf8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.6rem" }}>
                 + Descontar y Asignar Pieza del Inventario
@@ -830,7 +954,7 @@ export default function WorkshopPage() {
                     flex: 1,
                     padding: "0.65rem",
                     borderRadius: "8px",
-                    background: "#0d0e12",
+                    background: "#0c0e12",
                     border: "1px solid rgba(255,255,255,0.15)",
                     color: "#fff",
                     fontSize: "0.85rem",
@@ -853,7 +977,7 @@ export default function WorkshopPage() {
                     width: "70px",
                     padding: "0.65rem",
                     borderRadius: "8px",
-                    background: "#0d0e12",
+                    background: "#0c0e12",
                     border: "1px solid rgba(255,255,255,0.15)",
                     color: "#fff",
                     fontSize: "0.95rem",
@@ -868,7 +992,7 @@ export default function WorkshopPage() {
                   type="button"
                   onClick={() => setSelectedOrderForParts(null)}
                   style={{
-                    padding: "0.6rem 1.1rem",
+                    padding: "0.6rem 1.2rem",
                     background: "rgba(255,255,255,0.05)",
                     border: "1px solid rgba(255,255,255,0.1)",
                     color: "#94a3b8",
@@ -883,12 +1007,12 @@ export default function WorkshopPage() {
                   type="submit"
                   disabled={!selectedProduct || selectedProduct.stock < 1}
                   style={{
-                    padding: "0.6rem 1.3rem",
+                    padding: "0.65rem 1.4rem",
                     background: "linear-gradient(135deg, #0284c7, #0369a1)",
                     color: "#fff",
                     border: "none",
                     borderRadius: "8px",
-                    fontWeight: "800",
+                    fontWeight: "900",
                     fontSize: "0.85rem",
                     cursor: "pointer",
                   }}
@@ -908,7 +1032,7 @@ export default function WorkshopPage() {
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(8px)",
+            backdropFilter: "blur(12px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -918,18 +1042,18 @@ export default function WorkshopPage() {
         >
           <div
             style={{
-              background: "#181920",
-              border: "1px solid rgba(245, 158, 11, 0.3)",
+              background: "#161820",
+              border: "1px solid rgba(245, 158, 11, 0.35)",
               borderRadius: "16px",
               padding: "2rem",
               width: "100%",
               maxWidth: "520px",
-              boxShadow: "0 25px 50px rgba(0,0,0,0.8)",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem" }}>
-              <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: "800", color: "#f59e0b" }}>
-                Ingreso de Nueva Mula
+              <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "900", color: "#f59e0b" }}>
+                Ingreso de Nueva Mula al Taller
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -953,12 +1077,12 @@ export default function WorkshopPage() {
                     onChange={(e) => setCreateForm({ ...createForm, placa: e.target.value.toUpperCase() })}
                     style={{
                       width: "100%",
-                      padding: "0.6rem",
+                      padding: "0.65rem",
                       borderRadius: "8px",
-                      background: "#0d0e12",
+                      background: "#0c0e12",
                       border: "1px solid rgba(255,255,255,0.15)",
                       color: "#fde047",
-                      fontWeight: "800",
+                      fontWeight: "900",
                       fontSize: "0.95rem",
                     }}
                   />
@@ -973,9 +1097,9 @@ export default function WorkshopPage() {
                     onChange={(e) => setCreateForm({ ...createForm, marca: e.target.value })}
                     style={{
                       width: "100%",
-                      padding: "0.6rem",
+                      padding: "0.65rem",
                       borderRadius: "8px",
-                      background: "#0d0e12",
+                      background: "#0c0e12",
                       border: "1px solid rgba(255,255,255,0.15)",
                       color: "#fff",
                     }}
@@ -1001,9 +1125,9 @@ export default function WorkshopPage() {
                     onChange={(e) => setCreateForm({ ...createForm, linea: e.target.value })}
                     style={{
                       width: "100%",
-                      padding: "0.6rem",
+                      padding: "0.65rem",
                       borderRadius: "8px",
-                      background: "#0d0e12",
+                      background: "#0c0e12",
                       border: "1px solid rgba(255,255,255,0.15)",
                       color: "#fff",
                     }}
@@ -1021,9 +1145,9 @@ export default function WorkshopPage() {
                     onChange={(e) => setCreateForm({ ...createForm, color: e.target.value })}
                     style={{
                       width: "100%",
-                      padding: "0.6rem",
+                      padding: "0.65rem",
                       borderRadius: "8px",
-                      background: "#0d0e12",
+                      background: "#0c0e12",
                       border: "1px solid rgba(255,255,255,0.15)",
                       color: "#fff",
                     }}
@@ -1044,9 +1168,9 @@ export default function WorkshopPage() {
                     onChange={(e) => setCreateForm({ ...createForm, cliente: e.target.value })}
                     style={{
                       width: "100%",
-                      padding: "0.6rem",
+                      padding: "0.65rem",
                       borderRadius: "8px",
-                      background: "#0d0e12",
+                      background: "#0c0e12",
                       border: "1px solid rgba(255,255,255,0.15)",
                       color: "#fff",
                     }}
@@ -1064,9 +1188,9 @@ export default function WorkshopPage() {
                     onChange={(e) => setCreateForm({ ...createForm, telefono: e.target.value })}
                     style={{
                       width: "100%",
-                      padding: "0.6rem",
+                      padding: "0.65rem",
                       borderRadius: "8px",
-                      background: "#0d0e12",
+                      background: "#0c0e12",
                       border: "1px solid rgba(255,255,255,0.15)",
                       color: "#fff",
                     }}
@@ -1085,9 +1209,9 @@ export default function WorkshopPage() {
                   onChange={(e) => setCreateForm({ ...createForm, descripcion: e.target.value })}
                   style={{
                     width: "100%",
-                    padding: "0.6rem",
+                    padding: "0.65rem",
                     borderRadius: "8px",
-                    background: "#0d0e12",
+                    background: "#0c0e12",
                     border: "1px solid rgba(255,255,255,0.15)",
                     color: "#fff",
                     resize: "none",
@@ -1100,7 +1224,7 @@ export default function WorkshopPage() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   style={{
-                    padding: "0.6rem 1.1rem",
+                    padding: "0.65rem 1.2rem",
                     background: "rgba(255,255,255,0.05)",
                     border: "1px solid rgba(255,255,255,0.1)",
                     color: "#94a3b8",
@@ -1113,12 +1237,12 @@ export default function WorkshopPage() {
                 <button
                   type="submit"
                   style={{
-                    padding: "0.6rem 1.3rem",
-                    background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                    padding: "0.65rem 1.4rem",
+                    background: "linear-gradient(135deg, #f59e0b, #ea580c)",
                     color: "#000",
                     border: "none",
                     borderRadius: "8px",
-                    fontWeight: "800",
+                    fontWeight: "900",
                     cursor: "pointer",
                   }}
                 >
