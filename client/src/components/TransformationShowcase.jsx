@@ -14,6 +14,7 @@ import { Link } from "react-router-dom";
 export default function TransformationShowcase({
   config = {},
   whatsappNumber = "573104567890",
+  onOpenQuote,
 }) {
   const beforeAfter = config?.beforeAfter || {};
   const cleanWaNumber = String(whatsappNumber).replace(/\D/g, "") || "573104567890";
@@ -316,15 +317,30 @@ export default function TransformationShowcase({
                   <h4>{selectedHotspot.title}</h4>
                   <p>{selectedHotspot.subtitle}</p>
                   <div className="popover-actions">
-                    <a
-                      href={getHotspotWaLink(selectedHotspot)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="popover-wa-btn"
-                    >
-                      <span>💬</span>
-                      <span>Cotizar este Accesorio</span>
-                    </a>
+                    {onOpenQuote ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpenQuote(selectedHotspot.title, activeProject.name);
+                          setSelectedHotspot(null);
+                        }}
+                        className="popover-wa-btn"
+                        style={{ cursor: "pointer", border: "none" }}
+                      >
+                        <span>⚡</span>
+                        <span>Cotizar este Accesorio</span>
+                      </button>
+                    ) : (
+                      <a
+                        href={getHotspotWaLink(selectedHotspot)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="popover-wa-btn"
+                      >
+                        <span>💬</span>
+                        <span>Cotizar este Accesorio</span>
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
@@ -487,15 +503,27 @@ export default function TransformationShowcase({
         </div>
 
         <div className="bottom-action-buttons">
-          <a
-            href={getProjectWaLink()}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-quote-transformation"
-          >
-            <span>💬</span>
-            <span>Cotizar Transformación como Esta</span>
-          </a>
+          {onOpenQuote ? (
+            <button
+              type="button"
+              onClick={() => onOpenQuote("Transformación Completa de Mula", activeProject.name)}
+              className="btn-quote-transformation"
+              style={{ cursor: "pointer", border: "none" }}
+            >
+              <span>⚡</span>
+              <span>Cotizar Transformación como Esta</span>
+            </button>
+          ) : (
+            <a
+              href={getProjectWaLink()}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-quote-transformation"
+            >
+              <span>💬</span>
+              <span>Cotizar Transformación como Esta</span>
+            </a>
+          )}
 
           <Link
             to={activeProject.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}

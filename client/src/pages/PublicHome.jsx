@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import TransformationShowcase from "../components/TransformationShowcase";
+import QuickQuoteModal from "../components/QuickQuoteModal";
 import { showSuccessToast, showErrorToast } from "../utils/alerts";
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -18,7 +19,7 @@ const DEFAULT_CONFIG = {
     enabled: true,
     badgeText: "🔥 CUPOS LIMITADOS",
     message: "Fabricación artesanal de Bompers en Acero 304 con entrega prioritaria este mes.",
-    buttonText: "Cotizar por WhatsApp ➔",
+    buttonText: "⚡ Cotizar Cupo de Taller ➔",
     link: "#cotizar",
   },
 
@@ -132,6 +133,16 @@ export default function PublicHome() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const [quoteInitialService, setQuoteInitialService] = useState("");
+  const [quoteInitialVehicle, setQuoteInitialVehicle] = useState("");
+
+  const handleOpenQuote = (service = "", vehicle = "") => {
+    if (service) setQuoteInitialService(service);
+    if (vehicle) setQuoteInitialVehicle(vehicle);
+    setQuoteModalOpen(true);
+  };
+
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -294,16 +305,14 @@ export default function PublicHome() {
             <span className="announcement-badge">{config.announcementBar.badgeText}</span>
             <span className="announcement-text">{config.announcementBar.message}</span>
             {config.announcementBar.buttonText && (
-              <a
-                href={
-                  config.announcementBar.link?.startsWith("#")
-                    ? config.announcementBar.link
-                    : "#cotizar"
-                }
+              <button
+                type="button"
+                onClick={() => handleOpenQuote()}
                 className="announcement-btn"
+                style={{ cursor: "pointer", border: "1px solid rgba(245, 158, 11, 0.4)" }}
               >
                 {config.announcementBar.buttonText}
-              </a>
+              </button>
             )}
           </div>
           <button
@@ -351,10 +360,15 @@ export default function PublicHome() {
               <span className="nav-pill-icon">🛠️</span>
               <span>Servicios</span>
             </a>
-            <a href="#cotizar" className="nav-pill-link">
+            <button
+              type="button"
+              onClick={() => handleOpenQuote()}
+              className="nav-pill-link"
+              style={{ background: "transparent", border: "1px solid transparent", cursor: "pointer" }}
+            >
               <span className="nav-pill-icon">⚡</span>
               <span>Cotizador</span>
-            </a>
+            </button>
           </nav>
 
           {/* Grupo de Acciones Ultra-Pro (WhatsApp exclusivo en botón flotante inferior) */}
@@ -368,14 +382,16 @@ export default function PublicHome() {
               <span>Showroom 4K</span>
             </Link>
 
-            <a
-              href="#cotizar"
+            <button
+              type="button"
+              onClick={() => handleOpenQuote()}
               className="btn-header-quote-pro pulse-btn"
               title="Cotizar mi vehículo ahora"
+              style={{ border: "none", cursor: "pointer" }}
             >
               <span>⚡</span>
               <span>Cotizar Mi Mula</span>
-            </a>
+            </button>
 
             {/* Botón Hamburguesa Móvil */}
             <button
@@ -416,14 +432,18 @@ export default function PublicHome() {
                 <span>🛠️</span>
                 <span>Servicios de Taller</span>
               </a>
-              <a
-                href="#cotizar"
-                onClick={() => setMobileMenuOpen(false)}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleOpenQuote();
+                }}
                 className="mobile-nav-link"
+                style={{ background: "#161b26", width: "100%", textAlign: "left", cursor: "pointer" }}
               >
                 <span>⚡</span>
                 <span>Cotizar Proyecto</span>
-              </a>
+              </button>
               <Link
                 to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}
                 onClick={() => setMobileMenuOpen(false)}
@@ -449,9 +469,14 @@ export default function PublicHome() {
             <p>{config.hero.subtitle}</p>
 
             <div className="hero-actions">
-              <a href={config.hero.ctaPrimaryLink || "#cotizar"} className="primary-btn pulse-btn">
+              <button
+                type="button"
+                onClick={() => handleOpenQuote()}
+                className="primary-btn pulse-btn"
+                style={{ cursor: "pointer", border: "none" }}
+              >
                 {config.hero.ctaPrimaryText || "⚡ Cotizar Mi Nave Ahora"}
-              </a>
+              </button>
               <Link
                 to={config.hero.ctaSecondaryLink || "/galeria/Kenworth-T800-Placa-WTL892"}
                 className="secondary-btn"
@@ -508,6 +533,7 @@ export default function PublicHome() {
           <TransformationShowcase
             config={config}
             whatsappNumber={cleanWaNumber}
+            onOpenQuote={handleOpenQuote}
           />
         </div>
       </section>
@@ -839,6 +865,28 @@ export default function PublicHome() {
                 <span className="service-badge-pill">{service.badge}</span>
                 <h3>{service.title}</h3>
                 <p>{service.text}</p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenQuote(service.title)}
+                  className="service-card-quote-btn"
+                  style={{
+                    marginTop: "14px",
+                    background: "rgba(245, 158, 11, 0.1)",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    color: "#fbbf24",
+                    borderRadius: "8px",
+                    padding: "6px 14px",
+                    fontSize: "0.8rem",
+                    fontWeight: "800",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <span>⚡ Cotizar este trabajo ➔</span>
+                </button>
               </article>
             ))}
           </div>
@@ -1036,6 +1084,15 @@ export default function PublicHome() {
         <span style={{ fontSize: "1.25rem" }}>💬</span>
         <span className="wa-text">Cotizar en WhatsApp</span>
       </a>
+
+      {/* 10. Modal Cinemático de Cotización Express */}
+      <QuickQuoteModal
+        isOpen={quoteModalOpen}
+        onClose={() => setQuoteModalOpen(false)}
+        whatsappNumber={cleanWaNumber}
+        initialService={quoteInitialService}
+        initialVehicle={quoteInitialVehicle}
+      />
     </div>
   );
 }

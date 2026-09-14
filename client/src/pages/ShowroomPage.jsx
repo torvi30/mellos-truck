@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import BeforeAfterSlider from "../components/BeforeAfterSlider";
+import QuickQuoteModal from "../components/QuickQuoteModal";
 
 export default function ShowroomPage() {
   const { slug } = useParams();
@@ -85,6 +86,8 @@ export default function ShowroomPage() {
     fetchShowroomData();
   }, [slug]);
 
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
@@ -102,30 +105,39 @@ export default function ShowroomPage() {
 
   const { workOrder, showcase } = data || {};
   const currentBeforeAfter = showcase?.beforeAfter?.[0];
+  const vehicleFullName = `${workOrder?.brand || "Kenworth"} ${workOrder?.line || "T800"}`.trim();
 
   return (
     <div className="showroom-page">
-      {/* 1. Header Minimalista & Marca */}
+      {/* 1. Header Minimalista & Marca Ultra-Pro */}
       <header className="showroom-nav">
         <div className="showroom-nav-inner">
-          <Link to="/" className="showroom-brand">
-            <span className="brand-badge">MT</span>
-            <span className="brand-text">MELLOS TRUCK</span>
-          </Link>
+          <div className="showroom-nav-left">
+            <Link to="/" className="showroom-brand">
+              <span className="brand-badge">MT</span>
+              <div className="brand-titles">
+                <span className="brand-text">MELLOS TRUCK</span>
+                <span className="brand-sub">STUDIO 4K</span>
+              </div>
+            </Link>
+            <Link to="/" className="showroom-back-link">
+              <span>←</span>
+              <span>Volver a Portada</span>
+            </Link>
+          </div>
+
           <div className="showroom-header-actions">
-            <button onClick={handleCopyLink} className="btn-secondary-dark">
+            <button onClick={handleCopyLink} className="btn-secondary-dark" title="Copiar enlace para compartir">
               {copied ? "✓ ¡Enlace copiado!" : "🔗 Copiar Magic Link"}
             </button>
-            <a
-              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                `¡Pillate cómo quedó mi nave en Mellos Truck! 🔥🚛 Mira el video y la comparativa:\n${window.location.href}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-whatsapp-glow"
+            <button
+              type="button"
+              onClick={() => setQuoteModalOpen(true)}
+              className="btn-showroom-quote-neon"
+              title="Cotizar una transformación similar"
             >
-              <span className="wa-icon">💬</span> Compartir en WhatsApp
-            </a>
+              <span>⚡ Cotizar Esta Nave</span>
+            </button>
           </div>
         </div>
       </header>
@@ -266,20 +278,33 @@ export default function ShowroomPage() {
             En Mellos Truck fabricamos accesorios a medida, bompers de acero inoxidable y personalización que impone respeto en carretera.
           </p>
           <div className="cta-actions">
-            <Link to="/" className="btn-cta-primary">
-              ⚡ Cotizar Mi Mula Ahora
-            </Link>
-            <a
-              href="https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20vi%20la%20transformaci%C3%B3n%20en%20el%20showroom%20y%20quiero%20cotizar%20mi%20veh%C3%ADculo"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-cta-whatsapp"
+            <button
+              type="button"
+              onClick={() => setQuoteModalOpen(true)}
+              className="btn-cta-primary"
+              style={{ cursor: "pointer", border: "none" }}
             >
-              💬 Hablar con un Asesor por WhatsApp
-            </a>
+              ⚡ Cotizar Mi Mula Ahora
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuoteModalOpen(true)}
+              className="btn-cta-whatsapp"
+              style={{ cursor: "pointer", border: "none" }}
+            >
+              💬 Hablar con un Asesor de Taller
+            </button>
           </div>
         </div>
       </footer>
+
+      {/* Modal de Cotización Express para Showroom */}
+      <QuickQuoteModal
+        isOpen={quoteModalOpen}
+        onClose={() => setQuoteModalOpen(false)}
+        initialVehicle={vehicleFullName || "Kenworth T800"}
+        initialService='Bomper 20" Inox Calibre 10'
+      />
     </div>
   );
 }
