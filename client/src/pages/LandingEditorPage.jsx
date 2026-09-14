@@ -19,6 +19,81 @@ export default function LandingEditorPage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("hero"); // "hero" | "contact" | "announcement" | "metrics" | "slider"
   const [config, setConfig] = useState(null);
+  const [activeHotspotIndex, setActiveHotspotIndex] = useState(0);
+  const pinboardRef = React.useRef(null);
+
+  const handlePinboardClick = (e) => {
+    if (!pinboardRef.current) return;
+    const currentHotspots = config?.beforeAfter?.hotspots || [];
+    if (currentHotspots.length === 0) return;
+    const targetIdx = activeHotspotIndex < currentHotspots.length ? activeHotspotIndex : 0;
+
+    const rect = pinboardRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    let pctX = Math.round((clickX / rect.width) * 100);
+    let pctY = Math.round((clickY / rect.height) * 100);
+    if (pctX < 0) pctX = 0;
+    if (pctX > 100) pctX = 100;
+    if (pctY < 0) pctY = 0;
+    if (pctY > 100) pctY = 100;
+
+    const newHotspots = [...currentHotspots];
+    newHotspots[targetIdx] = {
+      ...newHotspots[targetIdx],
+      x: pctX,
+      y: pctY,
+    };
+    setConfig({
+      ...config,
+      beforeAfter: {
+        ...config.beforeAfter,
+        hotspots: newHotspots,
+      },
+    });
+    showSuccessToast(`Punto #${targetIdx + 1} (${newHotspots[targetIdx].tag || "Accesorio"}) ubicado en (${pctX}%, ${pctY}%)`);
+  };
+
+  const handleAddHotspot = () => {
+    const currentHotspots = config?.beforeAfter?.hotspots || [];
+    const newSpot = {
+      id: `spot_${Date.now()}`,
+      tag: "LUCES ESTACIONARIAS",
+      title: "Luces de Galería LED Ambar (Estacionarias)",
+      subtitle: "Instalación de luces perimetrales de alta potencia en cabina y visera.",
+      image: "/images/showroom/detail_visera_cornetas.jpg",
+      x: 52,
+      y: 20,
+    };
+    const updated = [...currentHotspots, newSpot];
+    setConfig({
+      ...config,
+      beforeAfter: {
+        ...config.beforeAfter,
+        hotspots: updated,
+      },
+    });
+    setActiveHotspotIndex(updated.length - 1);
+    showSuccessToast("¡Punto creado! Haz clic sobre la foto para posicionarlo donde van las estacionarias.");
+  };
+
+  const handleDeleteHotspot = (indexToDelete) => {
+    const currentHotspots = config?.beforeAfter?.hotspots || [];
+    if (currentHotspots.length <= 1) {
+      showErrorToast("Debe haber al menos 1 punto interactivo.");
+      return;
+    }
+    const updated = currentHotspots.filter((_, idx) => idx !== indexToDelete);
+    setConfig({
+      ...config,
+      beforeAfter: {
+        ...config.beforeAfter,
+        hotspots: updated,
+      },
+    });
+    setActiveHotspotIndex(Math.max(0, indexToDelete - 1));
+    showSuccessToast("Punto interactivo eliminado.");
+  };
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -1115,93 +1190,396 @@ export default function LandingEditorPage() {
               </div>
             </div>
 
-            {/* Puntos Neón Interactivos (Hotspots) */}
-            <div style={{ marginTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.2rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "900", color: "#f59e0b", marginBottom: "0.8rem" }}>
-                📍 Puntos Neón Interactivos (Hotspots de Accesorios sobre la Foto)
-              </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
-                {(config.beforeAfter?.hotspots || []).map((hotspot, hIdx) => (
-                  <div
-                    key={hotspot.id || hIdx}
+            {/* Puntos Neón Interactivos (Hotspots) con Ubicación Visual & Subida de Fotos */}
+            <div style={{ marginTop: "1.4rem", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.4rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "12px" }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: "900", color: "#f59e0b", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span>📍</span>
+                    <span>Puntos Neón Interactivos (Hotspots de Accesorios)</span>
+                  </h4>
+                  <p style={{ margin: "3px 0 0 0", fontSize: "0.8rem", color: "#94a3b8" }}>
+                    Agrega, ubica y sube fotos para cualquier mejora (estacionarias, bomper, visera, rines, etc.).
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddHotspot}
+                  className="primary-btn"
+                  style={{
+                    padding: "0.6rem 1.2rem",
+                    fontSize: "0.82rem",
+                    fontWeight: "900",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span>➕</span>
+                  <span>Agregar Nuevo Punto (Ej: Estacionarias)</span>
+                </button>
+              </div>
+
+              {/* 1. Pizarra Visual Interactiva: Haz Clic en la Foto para Ubicar el Punto */}
+              <div style={{ marginBottom: "1.5rem" }}>
+                <div style={{
+                  background: "rgba(245, 158, 11, 0.1)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  marginBottom: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "1rem" }}>🎯</span>
+                    <span style={{ fontSize: "0.8rem", color: "#fbbf24", fontWeight: "800" }}>
+                      UBICADOR VISUAL: Haz clic en cualquier parte de la foto para mover el Punto #{activeHotspotIndex + 1} (
+                      {config.beforeAfter?.hotspots?.[activeHotspotIndex]?.tag || "Accesorio"})
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: "700" }}>
+                    X: {config.beforeAfter?.hotspots?.[activeHotspotIndex]?.x || 50}% | Y: {config.beforeAfter?.hotspots?.[activeHotspotIndex]?.y || 50}%
+                  </span>
+                </div>
+
+                {/* Contenedor Interactivo con la Foto de la Mula */}
+                <div
+                  ref={pinboardRef}
+                  onClick={handlePinboardClick}
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    aspectRatio: "16 / 9",
+                    maxHeight: "420px",
+                    borderRadius: "14px",
+                    overflow: "hidden",
+                    cursor: "crosshair",
+                    border: "2px solid rgba(245, 158, 11, 0.4)",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.8)",
+                    background: "#000",
+                  }}
+                  title="Haz clic sobre cualquier parte de la mula para ubicar el punto seleccionado"
+                >
+                  <img
+                    src={config.beforeAfter?.afterImage || "/images/showroom/kenworth_after.jpg"}
+                    alt="Mula Mellos Truck"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }}
+                  />
+
+                  {/* Pines renderizados sobre la foto */}
+                  {(config.beforeAfter?.hotspots || []).map((spot, idx) => (
+                    <div
+                      key={spot.id || idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveHotspotIndex(idx);
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: `${spot.y}%`,
+                        left: `${spot.x}%`,
+                        transform: "translate(-50%, -50%)",
+                        cursor: "pointer",
+                        zIndex: activeHotspotIndex === idx ? 25 : 15,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: activeHotspotIndex === idx ? "36px" : "28px",
+                          height: activeHotspotIndex === idx ? "36px" : "28px",
+                          borderRadius: "50%",
+                          background: activeHotspotIndex === idx ? "#f59e0b" : "#10141e",
+                          border: activeHotspotIndex === idx ? "2.5px solid #fff" : "2px solid #f59e0b",
+                          color: activeHotspotIndex === idx ? "#000" : "#f59e0b",
+                          fontWeight: "900",
+                          fontSize: activeHotspotIndex === idx ? "0.9rem" : "0.75rem",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: activeHotspotIndex === idx
+                            ? "0 0 20px rgba(245, 158, 11, 0.9), 0 0 0 4px rgba(245, 158, 11, 0.3)"
+                            : "0 0 10px rgba(0,0,0,0.8)",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        {idx + 1}
+                      </div>
+                      <span
+                        style={{
+                          marginTop: "3px",
+                          background: "rgba(0,0,0,0.85)",
+                          border: "1px solid rgba(245, 158, 11, 0.5)",
+                          color: "#fbbf24",
+                          fontSize: "0.62rem",
+                          fontWeight: "800",
+                          padding: "1px 6px",
+                          borderRadius: "4px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {spot.tag || `PUNTO ${idx + 1}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Píldoras Selectoras de Puntos */}
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "1.2rem" }}>
+                {(config.beforeAfter?.hotspots || []).map((spot, idx) => (
+                  <button
+                    key={spot.id || idx}
+                    type="button"
+                    onClick={() => setActiveHotspotIndex(idx)}
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "80px 1fr 1fr",
-                      gap: "1rem",
-                      background: "#0d0f17",
-                      border: "1px solid rgba(245, 158, 11, 0.2)",
-                      borderRadius: "10px",
-                      padding: "0.8rem",
+                      background: activeHotspotIndex === idx ? "linear-gradient(135deg, #f59e0b, #d97706)" : "#141722",
+                      color: activeHotspotIndex === idx ? "#000" : "#cbd5e1",
+                      border: activeHotspotIndex === idx ? "1px solid #f59e0b" : "1px solid #283244",
+                      fontWeight: "800",
+                      fontSize: "0.82rem",
+                      padding: "8px 14px",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      display: "inline-flex",
                       alignItems: "center",
+                      gap: "6px",
+                      transition: "all 0.2s ease",
                     }}
                   >
-                    <div style={{ width: "80px", height: "60px", borderRadius: "6px", overflow: "hidden" }}>
-                      <img
-                        src={hotspot.image}
-                        alt={hotspot.title}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                    </div>
-                    <div>
-                      <span style={{ fontSize: "0.68rem", color: "#f59e0b", fontWeight: "900" }}>
-                        {hotspot.tag}
-                      </span>
-                      <input
-                        type="text"
-                        value={hotspot.title}
-                        onChange={(e) => {
-                          const newHotspots = [...(config.beforeAfter.hotspots || [])];
-                          newHotspots[hIdx].title = e.target.value;
-                          setConfig({
-                            ...config,
-                            beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
-                          });
-                        }}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          background: "#161b26",
-                          border: "1px solid #283244",
-                          borderRadius: "6px",
-                          padding: "0.4rem 0.6rem",
-                          color: "#fff",
-                          fontSize: "0.82rem",
-                          fontWeight: "700",
-                          marginTop: "2px",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <span style={{ fontSize: "0.68rem", color: "#94a3b8", fontWeight: "700" }}>
-                        Descripción del Accesorio
-                      </span>
-                      <input
-                        type="text"
-                        value={hotspot.subtitle}
-                        onChange={(e) => {
-                          const newHotspots = [...(config.beforeAfter.hotspots || [])];
-                          newHotspots[hIdx].subtitle = e.target.value;
-                          setConfig({
-                            ...config,
-                            beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
-                          });
-                        }}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          background: "#161b26",
-                          border: "1px solid #283244",
-                          borderRadius: "6px",
-                          padding: "0.4rem 0.6rem",
-                          color: "#cbd5e1",
-                          fontSize: "0.8rem",
-                          marginTop: "2px",
-                        }}
-                      />
-                    </div>
-                  </div>
+                    <span>📍 Punto {idx + 1}:</span>
+                    <span>{spot.tag || `Accesorio ${idx + 1}`}</span>
+                  </button>
                 ))}
               </div>
+
+              {/* 3. Panel de Edición Detallada del Punto Seleccionado */}
+              {config.beforeAfter?.hotspots?.[activeHotspotIndex] && (
+                <div
+                  style={{
+                    background: "#0e111a",
+                    border: "1.5px solid rgba(245, 158, 11, 0.35)",
+                    borderRadius: "14px",
+                    padding: "1.2rem 1.4rem",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.8rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "50%",
+                        background: "#f59e0b",
+                        color: "#000",
+                        display: "grid",
+                        placeItems: "center",
+                        fontWeight: "900",
+                        fontSize: "0.9rem",
+                      }}>
+                        {activeHotspotIndex + 1}
+                      </span>
+                      <div>
+                        <strong style={{ color: "#fff", fontSize: "0.95rem" }}>
+                          Configurando Punto #{activeHotspotIndex + 1}: {config.beforeAfter.hotspots[activeHotspotIndex].tag}
+                        </strong>
+                        <p style={{ margin: 0, fontSize: "0.76rem", color: "#94a3b8" }}>
+                          Sube la foto macro y personaliza el título y texto que verá el cliente.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteHotspot(activeHotspotIndex)}
+                      style={{
+                        background: "rgba(239, 68, 68, 0.15)",
+                        border: "1px solid rgba(239, 68, 68, 0.4)",
+                        color: "#ef4444",
+                        padding: "6px 12px",
+                        borderRadius: "6px",
+                        fontSize: "0.78rem",
+                        fontWeight: "800",
+                        cursor: "pointer",
+                      }}
+                    >
+                      🗑️ Eliminar Punto
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: "1.5rem" }}>
+                    {/* Subida de Imagen del Accesorio */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "800", color: "#f59e0b", marginBottom: "0.4rem" }}>
+                        📸 Foto Macro del Accesorio
+                      </label>
+                      <div style={{ height: "120px", borderRadius: "8px", overflow: "hidden", background: "#000", border: "1px solid #334155", marginBottom: "0.5rem" }}>
+                        <img
+                          src={config.beforeAfter.hotspots[activeHotspotIndex].image}
+                          alt="Detalle accesorio"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      </div>
+                      <ImageUploader
+                        currentImage={config.beforeAfter.hotspots[activeHotspotIndex].image}
+                        onUploadComplete={(url) => {
+                          const newHotspots = [...config.beforeAfter.hotspots];
+                          newHotspots[activeHotspotIndex].image = url;
+                          setConfig({
+                            ...config,
+                            beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
+                          });
+                          showSuccessToast("Foto del accesorio actualizada");
+                        }}
+                      />
+                    </div>
+
+                    {/* Campos de Información */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1rem" }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.3rem" }}>
+                            Etiqueta Corta (TAG en mayúsculas)
+                          </label>
+                          <input
+                            type="text"
+                            value={config.beforeAfter.hotspots[activeHotspotIndex].tag}
+                            onChange={(e) => {
+                              const newHotspots = [...config.beforeAfter.hotspots];
+                              newHotspots[activeHotspotIndex].tag = e.target.value.toUpperCase();
+                              setConfig({
+                                ...config,
+                                beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
+                              });
+                            }}
+                            placeholder="EJ: LUCES ESTACIONARIAS"
+                            style={{
+                              width: "100%",
+                              padding: "0.6rem",
+                              borderRadius: "6px",
+                              background: "#161b26",
+                              border: "1px solid #283244",
+                              color: "#fbbf24",
+                              fontWeight: "900",
+                              fontSize: "0.82rem",
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.3rem" }}>
+                            Título del Accesorio
+                          </label>
+                          <input
+                            type="text"
+                            value={config.beforeAfter.hotspots[activeHotspotIndex].title}
+                            onChange={(e) => {
+                              const newHotspots = [...config.beforeAfter.hotspots];
+                              newHotspots[activeHotspotIndex].title = e.target.value;
+                              setConfig({
+                                ...config,
+                                beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
+                              });
+                            }}
+                            placeholder="EJ: Luces de Galería LED Ambar (Estacionarias)"
+                            style={{
+                              width: "100%",
+                              padding: "0.6rem",
+                              borderRadius: "6px",
+                              background: "#161b26",
+                              border: "1px solid #283244",
+                              color: "#fff",
+                              fontWeight: "800",
+                              fontSize: "0.82rem",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.3rem" }}>
+                          Descripción / Especificaciones del Accesorio
+                        </label>
+                        <input
+                          type="text"
+                          value={config.beforeAfter.hotspots[activeHotspotIndex].subtitle}
+                          onChange={(e) => {
+                            const newHotspots = [...config.beforeAfter.hotspots];
+                            newHotspots[activeHotspotIndex].subtitle = e.target.value;
+                            setConfig({
+                              ...config,
+                              beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
+                            });
+                          }}
+                          placeholder="EJ: Montaje de luces sandía de alta potencia en visera y cabina."
+                          style={{
+                            width: "100%",
+                            padding: "0.6rem",
+                            borderRadius: "6px",
+                            background: "#161b26",
+                            border: "1px solid #283244",
+                            color: "#cbd5e1",
+                            fontSize: "0.82rem",
+                          }}
+                        />
+                      </div>
+
+                      {/* Ajuste Manual de Coordenadas X / Y */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.2rem", background: "#080a10", padding: "0.8rem", borderRadius: "8px", border: "1px solid #1e2433" }}>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.3rem" }}>
+                            <span style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: "800" }}>↔️ Posición Horizontal (X)</span>
+                            <span style={{ fontSize: "0.72rem", color: "#f59e0b", fontWeight: "900" }}>{config.beforeAfter.hotspots[activeHotspotIndex].x}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={config.beforeAfter.hotspots[activeHotspotIndex].x}
+                            onChange={(e) => {
+                              const newHotspots = [...config.beforeAfter.hotspots];
+                              newHotspots[activeHotspotIndex].x = Number(e.target.value);
+                              setConfig({
+                                ...config,
+                                beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
+                              });
+                            }}
+                            style={{ width: "100%", accentColor: "#f59e0b" }}
+                          />
+                        </div>
+
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.3rem" }}>
+                            <span style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: "800" }}>↕️ Posición Vertical (Y)</span>
+                            <span style={{ fontSize: "0.72rem", color: "#f59e0b", fontWeight: "900" }}>{config.beforeAfter.hotspots[activeHotspotIndex].y}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={config.beforeAfter.hotspots[activeHotspotIndex].y}
+                            onChange={(e) => {
+                              const newHotspots = [...config.beforeAfter.hotspots];
+                              newHotspots[activeHotspotIndex].y = Number(e.target.value);
+                              setConfig({
+                                ...config,
+                                beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
+                              });
+                            }}
+                            style={{ width: "100%", accentColor: "#f59e0b" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

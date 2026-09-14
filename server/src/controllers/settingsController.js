@@ -192,6 +192,15 @@ export const updateLandingConfig = async (req, res) => {
         ...DEFAULT_LANDING_CONFIG.beforeAfter,
         ...(memoryConfig?.beforeAfter || {}),
         ...(newConfig.beforeAfter || {}),
+        hotspots: Array.isArray(newConfig.beforeAfter?.hotspots)
+          ? newConfig.beforeAfter.hotspots
+          : (memoryConfig?.beforeAfter?.hotspots || DEFAULT_LANDING_CONFIG.beforeAfter.hotspots),
+        specs: Array.isArray(newConfig.beforeAfter?.specs)
+          ? newConfig.beforeAfter.specs
+          : (memoryConfig?.beforeAfter?.specs || DEFAULT_LANDING_CONFIG.beforeAfter.specs),
+        projects: Array.isArray(newConfig.beforeAfter?.projects)
+          ? newConfig.beforeAfter.projects
+          : (memoryConfig?.beforeAfter?.projects || DEFAULT_LANDING_CONFIG.beforeAfter.projects),
       },
       metrics: Array.isArray(newConfig.metrics) && newConfig.metrics.length > 0
         ? newConfig.metrics
