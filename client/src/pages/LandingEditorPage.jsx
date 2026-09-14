@@ -1047,6 +1047,162 @@ export default function LandingEditorPage() {
                 }}
               />
             </div>
+
+            {/* Ficha de Especificaciones de Taller */}
+            <div style={{ marginTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.2rem" }}>
+              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "900", color: "#f59e0b", marginBottom: "0.8rem" }}>
+                🛡️ Ficha Técnica de Taller (Garantía, Materiales & Tiempos)
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.9rem" }}>
+                {(config.beforeAfter?.specs || []).map((spec, sIdx) => (
+                  <div
+                    key={sIdx}
+                    style={{
+                      background: "#0d0f17",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: "10px",
+                      padding: "0.8rem",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "0.5rem" }}>
+                      <span style={{ fontSize: "1.2rem" }}>{spec.icon}</span>
+                      <input
+                        type="text"
+                        value={spec.label}
+                        onChange={(e) => {
+                          const newSpecs = [...(config.beforeAfter.specs || [])];
+                          newSpecs[sIdx].label = e.target.value;
+                          setConfig({
+                            ...config,
+                            beforeAfter: { ...config.beforeAfter, specs: newSpecs },
+                          });
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          borderBottom: "1px solid #334155",
+                          color: "#94a3b8",
+                          fontSize: "0.75rem",
+                          fontWeight: "700",
+                          width: "100%",
+                        }}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={spec.value}
+                      onChange={(e) => {
+                        const newSpecs = [...(config.beforeAfter.specs || [])];
+                        newSpecs[sIdx].value = e.target.value;
+                        setConfig({
+                          ...config,
+                          beforeAfter: { ...config.beforeAfter, specs: newSpecs },
+                        });
+                      }}
+                      style={{
+                        background: "#161b26",
+                        border: "1px solid #283244",
+                        borderRadius: "6px",
+                        padding: "0.5rem 0.7rem",
+                        color: "#fff",
+                        fontSize: "0.85rem",
+                        fontWeight: "800",
+                        width: "100%",
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Puntos Neón Interactivos (Hotspots) */}
+            <div style={{ marginTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.2rem" }}>
+              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "900", color: "#f59e0b", marginBottom: "0.8rem" }}>
+                📍 Puntos Neón Interactivos (Hotspots de Accesorios sobre la Foto)
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+                {(config.beforeAfter?.hotspots || []).map((hotspot, hIdx) => (
+                  <div
+                    key={hotspot.id || hIdx}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "80px 1fr 1fr",
+                      gap: "1rem",
+                      background: "#0d0f17",
+                      border: "1px solid rgba(245, 158, 11, 0.2)",
+                      borderRadius: "10px",
+                      padding: "0.8rem",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ width: "80px", height: "60px", borderRadius: "6px", overflow: "hidden" }}>
+                      <img
+                        src={hotspot.image}
+                        alt={hotspot.title}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: "0.68rem", color: "#f59e0b", fontWeight: "900" }}>
+                        {hotspot.tag}
+                      </span>
+                      <input
+                        type="text"
+                        value={hotspot.title}
+                        onChange={(e) => {
+                          const newHotspots = [...(config.beforeAfter.hotspots || [])];
+                          newHotspots[hIdx].title = e.target.value;
+                          setConfig({
+                            ...config,
+                            beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
+                          });
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          background: "#161b26",
+                          border: "1px solid #283244",
+                          borderRadius: "6px",
+                          padding: "0.4rem 0.6rem",
+                          color: "#fff",
+                          fontSize: "0.82rem",
+                          fontWeight: "700",
+                          marginTop: "2px",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: "0.68rem", color: "#94a3b8", fontWeight: "700" }}>
+                        Descripción del Accesorio
+                      </span>
+                      <input
+                        type="text"
+                        value={hotspot.subtitle}
+                        onChange={(e) => {
+                          const newHotspots = [...(config.beforeAfter.hotspots || [])];
+                          newHotspots[hIdx].subtitle = e.target.value;
+                          setConfig({
+                            ...config,
+                            beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
+                          });
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          background: "#161b26",
+                          border: "1px solid #283244",
+                          borderRadius: "6px",
+                          padding: "0.4rem 0.6rem",
+                          color: "#cbd5e1",
+                          fontSize: "0.8rem",
+                          marginTop: "2px",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

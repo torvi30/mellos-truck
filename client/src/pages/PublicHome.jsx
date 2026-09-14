@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import BeforeAfterSlider from "../components/BeforeAfterSlider";
+import TransformationShowcase from "../components/TransformationShowcase";
 import { showSuccessToast, showErrorToast } from "../utils/alerts";
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -23,18 +23,18 @@ const DEFAULT_CONFIG = {
   },
 
   hero: {
-    badgeText: "LÍDERES EN MODIFICACIÓN DE PESADOS",
-    headline: "POTENCIA, ACERO & PRESENCIA PARA TU TRACTOMULA",
+    badgeText: "★ TALLER DE MODIFICACIONES ARTESANALES",
+    headline: "TRANSFORMAMOS TU MULA EN UNA LEYENDA DEL ASFALTO",
     subtitle:
-      "En Mellos Truck convertimos tu vehículo de carga pesada en una verdadera obra de arte en carretera. Fabricación artesanal de bompers en acero inoxidable, viseras americanas, iluminación LED y lujos que imponen respeto en cualquier ruta.",
+      "Especialistas en acero inoxidable calidad 304, corte láser personalizado, viseras tipo espejo, bompers de lujo y tienda física en container.",
     ctaPrimaryText: "⚡ Cotizar Mi Nave Ahora",
     ctaPrimaryLink: "#cotizar",
     ctaSecondaryText: "🎬 Explorar Showroom 4K",
     ctaSecondaryLink: "/galeria/Kenworth-T800-Placa-WTL892",
     featuredTruck: {
-      tag: "PROYECTO DESTACADO",
+      tag: "PROYECTO INSIGNIA • ENERO 2026",
       title: "Kenworth T800 Aerocab",
-      specs: 'Bomper 20" • Visera Espejo • Doble Corneta',
+      specs: "Bomper 20\" corte láser • Visera espejo • Rines diamantados",
       imageUrl: "/images/showroom/kenworth_after.jpg",
       magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
     },
@@ -48,9 +48,9 @@ const DEFAULT_CONFIG = {
 
   beforeAfter: {
     subheading: "EL CAMBIO HABLA POR SÍ SOLO",
-    title: "Intervención Real de Taller: Antes vs. Después",
+    title: "Estudio Cinemático de Transformaciones: Antes vs. Después",
     description:
-      "Desliza la manija amarilla para ver la transformación de esta nave: desde su llegada con bomper de fábrica hasta la entrega con acero cromado tipo espejo y accesorios de lujo.",
+      "Explora la transformación artesanal en alta definición: compara el estado de llegada al taller contra la entrega final con acabados en acero inoxidable 304 calidad espejo.",
     truckTitle: "Kenworth T800 • Placa WTL-892",
     truckDescription: "Transformación completa de estética, iluminación perimetral y bomper de acero inoxidable.",
     beforeImage: "/images/showroom/kenworth_before.jpg",
@@ -58,6 +58,73 @@ const DEFAULT_CONFIG = {
     beforeLabel: "ANTES (Llegada al taller)",
     afterLabel: "DESPUÉS (Mellos Truck)",
     projectLink: "/galeria/Kenworth-T800-Placa-WTL892",
+    specs: [
+      { icon: "⏱️", label: "Tiempo en Taller", value: "8 Días Hábiles" },
+      { icon: "🛡️", label: "Garantía de Obra", value: "De por vida en soldadura TIG" },
+      { icon: "💎", label: "Material Principal", value: "Inox 304 Grado Espejo" },
+      { icon: "⚡", label: "Nivel de Modificación", value: "Stage 3 (Full Custom)" },
+    ],
+    hotspots: [
+      {
+        id: "bumper",
+        tag: "BOMPER ARTESANAL",
+        title: "Bomper de 20\" en Acero Inoxidable Calibre 10",
+        subtitle: "Corte láser de precisión con acabado tipo espejo y acoples de aire ocultos.",
+        image: "/images/showroom/detail_bumper_chrome.jpg",
+        x: 28,
+        y: 78,
+      },
+      {
+        id: "visera",
+        tag: "VISERA & CORNETAS",
+        title: "Visera Americana Gangsta Calibre 10 & Cornetas",
+        subtitle: "Acero inoxidable calidad 304 acompañada de cornetas Hadley neumáticas de 24V.",
+        image: "/images/showroom/detail_visera_cornetas.jpg",
+        x: 68,
+        y: 20,
+      },
+      {
+        id: "rines",
+        tag: "RINES & COPAS SPIKES",
+        title: "Rines Pulidos Diamantados con Copas Spikes",
+        subtitle: "Tratamiento de pulido artesanal a espejo con tuercas cónicas de seguridad.",
+        image: "/images/showroom/detail_rines_spikes.jpg",
+        x: 48,
+        y: 74,
+      },
+    ],
+    projects: [
+      {
+        id: "kw-wtl892",
+        name: "Kenworth T800",
+        plate: "WTL-892",
+        badge: "ACERO ESPEJO 304",
+        beforeImage: "/images/showroom/kenworth_before.jpg",
+        afterImage: "/images/showroom/kenworth_after.jpg",
+        magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
+        summary: "Bomper artesanal de 20\", visera tipo espejo y doble corneta Hadley neumática.",
+      },
+      {
+        id: "mack-vision",
+        name: "Mack Vision Elite",
+        plate: "MKV-404",
+        badge: "CUSTOM BLACK & GOLD",
+        beforeImage: "/images/showroom/kenworth_before.jpg",
+        afterImage: "/images/showroom/mack_truck_custom.jpg",
+        magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
+        summary: "Pintura tricapa negro profundo, visera aerodinámica e iluminación LED perimetral.",
+      },
+      {
+        id: "peterbilt-389",
+        name: "Peterbilt 389 Classic",
+        plate: "PET-389",
+        badge: "SHOW TRUCK AMERICANO",
+        beforeImage: "/images/showroom/kenworth_before.jpg",
+        afterImage: "/images/showroom/peterbilt_truck_custom.jpg",
+        magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
+        summary: "Trompa extendida clásica, chimeneas monstruo de 8\" y visera estilo americano.",
+      },
+    ],
   },
 };
 
@@ -348,36 +415,22 @@ export default function PublicHome() {
         </div>
       </section>
 
-      {/* 3. Slider Interactivo "Antes y Después" Destacado en el Home */}
+      {/* 3. Estudio Cinemático de Transformaciones "Antes vs Después" Destacado */}
       <section className="public-section transformacion-section" id="transformacion">
         <div className="public-container">
           <div className="section-heading">
-            <span className="subheading-neon">{config.beforeAfter.subheading}</span>
-            <h2>{config.beforeAfter.title}</h2>
-            <p>{config.beforeAfter.description}</p>
+            <span className="subheading-neon">{config.beforeAfter?.subheading || "EL CAMBIO HABLA POR SÍ SOLO"}</span>
+            <h2>{config.beforeAfter?.title || "Estudio Cinemático: Antes vs. Después"}</h2>
+            <p>
+              {config.beforeAfter?.description ||
+                "Explora la transformación artesanal en alta definición: compara el estado de llegada al taller contra la entrega final con acabados en acero inoxidable 304 calidad espejo."}
+            </p>
           </div>
 
-          <div className="home-slider-wrapper">
-            <BeforeAfterSlider
-              beforeImage={config.beforeAfter.beforeImage}
-              afterImage={config.beforeAfter.afterImage}
-              beforeLabel={config.beforeAfter.beforeLabel}
-              afterLabel={config.beforeAfter.afterLabel}
-              aspectRatio="16/9"
-            />
-            <div className="slider-bottom-meta">
-              <div className="meta-left">
-                <strong>{config.beforeAfter.truckTitle}</strong>
-                <p>{config.beforeAfter.truckDescription}</p>
-              </div>
-              <Link
-                to={config.beforeAfter.projectLink || "/galeria/Kenworth-T800-Placa-WTL892"}
-                className="btn-view-project"
-              >
-                🎬 Ver Video & Ficha Completa del Proyecto
-              </Link>
-            </div>
-          </div>
+          <TransformationShowcase
+            config={config}
+            whatsappNumber={cleanWaNumber}
+          />
         </div>
       </section>
 

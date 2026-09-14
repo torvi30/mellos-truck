@@ -51,6 +51,73 @@
     "afterImage": "/images/showroom/kenworth_after.jpg",
     "beforeLabel": "ANTES (Llegada al taller)",
     "afterLabel": "DESPUÉS (Mellos Truck)",
-    "projectLink": "/galeria/Kenworth-T800-Placa-WTL892"
+    "projectLink": "/galeria/Kenworth-T800-Placa-WTL892",
+    "specs": [
+      { "icon": "⏱️", "label": "Tiempo en Taller", "value": "8 Días Hábiles" },
+      { "icon": "🛡️", "label": "Garantía de Obra", "value": "De por vida en soldadura TIG" },
+      { "icon": "💎", "label": "Material Principal", "value": "Inox 304 Grado Espejo" },
+      { "icon": "⚡", "label": "Nivel de Modificación", "value": "Stage 3 (Full Custom)" }
+    ],
+    "hotspots": [
+      {
+        "id": "bumper",
+        "tag": "BOMPER ARTESANAL",
+        "title": "Bomper de 20\" en Acero Inoxidable Calibre 10",
+        "subtitle": "Corte láser de precisión con acabado tipo espejo y acoples de aire ocultos.",
+        "image": "/images/showroom/detail_bumper_chrome.jpg",
+        "x": 28,
+        "y": 78
+      },
+      {
+        "id": "visera",
+        "tag": "VISERA & CORNETAS",
+        "title": "Visera Americana Gangsta Calibre 10 & Cornetas",
+        "subtitle": "Acero inoxidable calidad 304 acompañada de cornetas Hadley neumáticas de 24V.",
+        "image": "/images/showroom/detail_visera_cornetas.jpg",
+        "x": 68,
+        "y": 20
+      },
+      {
+        "id": "rines",
+        "tag": "RINES & COPAS SPIKES",
+        "title": "Rines Pulidos Diamantados con Copas Spikes",
+        "subtitle": "Tratamiento de pulido artesanal a espejo con tuercas cónicas de seguridad.",
+        "image": "/images/showroom/detail_rines_spikes.jpg",
+        "x": 48,
+        "y": 74
+      }
+    ],
+    "projects": [
+      {
+        "id": "kw-wtl892",
+        "name": "Kenworth T800",
+        "plate": "WTL-892",
+        "badge": "ACERO ESPEJO 304",
+        "beforeImage": "/images/showroom/kenworth_before.jpg",
+        "afterImage": "/images/showroom/kenworth_after.jpg",
+        "magicLink": "/galeria/Kenworth-T800-Placa-WTL892",
+        "summary": "Bomper artesanal de 20\", visera tipo espejo y doble corneta Hadley neumática."
+      },
+      {
+        "id": "mack-vision",
+        "name": "Mack Vision Elite",
+        "plate": "MKV-404",
+        "badge": "CUSTOM BLACK & GOLD",
+        "beforeImage": "/images/showroom/kenworth_before.jpg",
+        "afterImage": "/images/showroom/mack_truck_custom.jpg",
+        "magicLink": "/galeria/Kenworth-T800-Placa-WTL892",
+        "summary": "Pintura tricapa negro profundo, visera aerodinámica e iluminación LED perimetral."
+      },
+      {
+        "id": "peterbilt-389",
+        "name": "Peterbilt 389 Classic",
+        "plate": "PET-389",
+        "badge": "SHOW TRUCK AMERICANO",
+        "beforeImage": "/images/showroom/kenworth_before.jpg",
+        "afterImage": "/images/showroom/peterbilt_truck_custom.jpg",
+        "magicLink": "/galeria/Kenworth-T800-Placa-WTL892",
+        "summary": "Trompa extendida clásica, chimeneas monstruo de 8\" y visera estilo americano."
+      }
+    ]
   }
 }
