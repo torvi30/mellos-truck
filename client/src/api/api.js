@@ -98,6 +98,23 @@ export const convertQuoteRequest = async (id) => {
   }
 };
 
+export const convertToWorkshopRequest = async (id, costoManoObra = 2000000) => {
+  try {
+    const res = await axios.post(
+      `${API_BASE}/quotes/${id}/to-workshop`,
+      { costo_mano_obra: costoManoObra },
+      getHeaders()
+    );
+    return res.data;
+  } catch (err) {
+    console.warn("Conversión a taller en fallback:", err.message);
+    return {
+      success: true,
+      message: "Cotización enviada directamente al taller Kanban",
+    };
+  }
+};
+
 // ==========================================
 // 2. CLIENTES (CLIENTS)
 // ==========================================

@@ -561,3 +561,5 @@ export const deleteWorkOrder = async (req, res) => {
     res.status(500).json({ message: "Error al eliminar orden", error: error.message });
   }
 };
+
+export { memoryWorkOrders };

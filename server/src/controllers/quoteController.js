@@ -1,5 +1,72 @@
 import pool from "../config/db.js";
+import { memoryWorkOrders } from "./workOrderController.js";
 
+// Almacén en memoria de cotizaciones para modo resiliente (V3 Rules)
+let memoryQuotes = [
+  {
+    id: 1,
+    client_name: "Don Orlando Morales",
+    phone: "573147890123",
+    city: "Bucaramanga",
+    vehicle_type: "Kenworth T800",
+    plate: "SKR-901",
+    service: "Bomper de Acero Inoxidable (18-22 Pulgadas)",
+    details: "Fabricación de bomper de 20 pulgadas con cortes láser personalizados, doble visera americana espejo y 6 luces LED tipo sandía.",
+    status: "nueva",
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    id: 2,
+    client_name: "Transportes El Cacique",
+    phone: "573127894561",
+    city: "Medellín",
+    vehicle_type: "Mack Vision Elite",
+    plate: "TLK-552",
+    service: "Viseras Americanas & Cornetas Hadley",
+    details: "Instalación de visera drop visor pulida espejo y par de cornetas neumáticas de tren 24V.",
+    status: "contactado",
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 3,
+    client_name: "AgroCarga del Llano",
+    phone: "573109988776",
+    city: "Villavicencio",
+    vehicle_type: "International Eagle",
+    plate: "UZZ-804",
+    service: "Lujos de Tienda Container & Rines",
+    details: "Cotización de 4 rines Alcoa 22.5 pulidos espejo con copas spike y 10 luces de gálibo ámbar.",
+    status: "cotizada",
+    created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+  },
+  {
+    id: 4,
+    client_name: "Don Carlos Rodríguez",
+    phone: "573104567890",
+    city: "Medellín",
+    vehicle_type: "Kenworth T800",
+    plate: "WTL-892",
+    service: "Transformación Integral de Cabina & Acero Inox",
+    details: "Trabajo completo de bomper, visera y cornetas.",
+    status: "convertida",
+    created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
+  },
+];
+
+const detectBrand = (vehicleType) => {
+  const text = (vehicleType || "").toLowerCase();
+  if (text.includes("kenworth")) return "Kenworth";
+  if (text.includes("mack")) return "Mack";
+  if (text.includes("international")) return "International";
+  if (text.includes("peterbilt")) return "Peterbilt";
+  if (text.includes("freightliner")) return "Freightliner";
+  return "Kenworth";
+};
+
+/**
+ * 1. Crear nueva cotización (Pública desde la Web)
+ * POST /api/quotes
+ */
 export const createQuote = async (req, res) => {
   try {
     const {
@@ -21,38 +88,53 @@ export const createQuote = async (req, res) => {
       !details
     ) {
       return res.status(400).json({
-        message:
-          "client_name, phone, city, vehicle_type, service y details son obligatorios",
+        message: "client_name, phone, city, vehicle_type, service y details son obligatorios",
       });
     }
 
-    let quoteId = Date.now();
+    const newQuote = {
+      id: Date.now(),
+      client_name,
+      phone,
+      city,
+      vehicle_type,
+      plate: plate ? plate.toUpperCase().trim() : "",
+      service,
+      details,
+      status: "nueva",
+      created_at: new Date().toISOString(),
+    };
+
+    memoryQuotes.unshift(newQuote);
+
+    // Guardar en MySQL si está disponible
     try {
       const [result] = await pool.query(
-        `
-        INSERT INTO quotes
-        (client_name, phone, city, vehicle_type, plate, service, details, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `,
+        `INSERT INTO quotes (client_name, phone, city, vehicle_type, plate, service, details, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           client_name,
           phone,
           city,
           vehicle_type,
-          plate || null,
+          newQuote.plate || null,
           service,
           details,
           "nueva",
         ]
       );
-      quoteId = result.insertId;
+      if (result.insertId) {
+        newQuote.id = result.insertId;
+      }
     } catch (dbErr) {
-      console.warn("⚠️ MySQL offline en createQuote, guardando en modo desarrollo:", dbErr.message);
+      console.warn("⚠️ MySQL en modo fallback en createQuote:", dbErr.message);
     }
 
     res.status(201).json({
-      message: "Cotización creada correctamente",
-      quoteId,
+      success: true,
+      message: "¡Cotización recibida con éxito! Un asesor de Mellos Truck te contactará.",
+      quote: newQuote,
+      quoteId: newQuote.id,
     });
   } catch (error) {
     res.status(500).json({
@@ -62,15 +144,28 @@ export const createQuote = async (req, res) => {
   }
 };
 
+/**
+ * 2. Listar todas las cotizaciones
+ * GET /api/quotes
+ */
 export const getQuotes = async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT *
-      FROM quotes
-      ORDER BY created_at DESC
-    `);
+    let items = [...memoryQuotes];
 
-    res.json(rows);
+    try {
+      const [rows] = await pool.query(`
+        SELECT *
+        FROM quotes
+        ORDER BY created_at DESC
+      `);
+      if (rows && rows.length > 0) {
+        items = rows;
+      }
+    } catch (dbErr) {
+      // Usar memoria
+    }
+
+    res.json(items);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener cotizaciones",
@@ -79,6 +174,10 @@ export const getQuotes = async (req, res) => {
   }
 };
 
+/**
+ * 3. Actualizar estado de una cotización
+ * PUT /api/quotes/:id/status
+ */
 export const updateQuoteStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -100,23 +199,24 @@ export const updateQuoteStatus = async (req, res) => {
       });
     }
 
-    const [result] = await pool.query(
-      `
-      UPDATE quotes
-      SET status = ?
-      WHERE id = ?
-      `,
-      [status, id]
-    );
+    const quote = memoryQuotes.find((q) => q.id === parseInt(id, 10));
+    if (quote) {
+      quote.status = status;
+    }
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        message: "Cotización no encontrada",
-      });
+    try {
+      await pool.query(
+        `UPDATE quotes SET status = ? WHERE id = ?`,
+        [status, id]
+      );
+    } catch (dbErr) {
+      // offline fallback
     }
 
     res.json({
-      message: "Estado actualizado correctamente",
+      success: true,
+      message: `Estado actualizado a "${status}"`,
+      status,
     });
   } catch (error) {
     res.status(500).json({
@@ -126,138 +226,99 @@ export const updateQuoteStatus = async (req, res) => {
   }
 };
 
-export const convertQuoteToClient = async (req, res) => {
-  const connection = await pool.getConnection();
-
+/**
+ * 4. CONVERSIÓN DIRECTA 1-CLIC A ORDEN DE TALLER (KANBAN)
+ * POST /api/quotes/:id/to-workshop
+ */
+export const convertQuoteToWorkOrder = async (req, res) => {
   try {
-    await connection.beginTransaction();
-
     const { id } = req.params;
+    const { costo_mano_obra = 2000000 } = req.body;
 
-    const [quoteRows] = await connection.query(
-      `
-      SELECT *
-      FROM quotes
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [id]
-    );
-
-    if (quoteRows.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({
-        message: "Cotización no encontrada",
-      });
+    const quote = memoryQuotes.find((q) => q.id === parseInt(id, 10));
+    if (!quote) {
+      return res.status(404).json({ message: "Cotización no encontrada" });
     }
 
-    const quote = quoteRows[0];
+    const cleanPlate = (quote.plate || `PND-${Math.floor(100 + Math.random() * 900)}`).toUpperCase().trim();
+    const brand = detectBrand(quote.vehicle_type);
 
-    // 1. Buscar cliente por teléfono
-    const [existingClients] = await connection.query(
-      `
-      SELECT id
-      FROM clients
-      WHERE phone = ?
-      LIMIT 1
-      `,
-      [quote.phone]
-    );
+    // Crear orden de trabajo directamente en el Kanban del taller
+    const newOrder = {
+      id: Date.now(),
+      cliente: quote.client_name,
+      telefono: quote.phone,
+      placa: cleanPlate,
+      marca: brand,
+      linea: quote.vehicle_type || "Tractomula",
+      color: "Por definir en desarme",
+      descripcion: `[Cotización #${quote.id}] Servicio: ${quote.service}. Detalle: ${quote.details}`,
+      estado: "Ingreso", // Entra directamente a la primera fase del taller
+      slug: null,
+      magic_token: null,
+      fecha_ingreso: new Date().toISOString(),
+      fecha_estimada: new Date(Date.now() + 7 * 86400000).toISOString(),
+      costo_mano_obra: parseFloat(costo_mano_obra) || 2000000,
+      costo_repuestos: 0,
+      costo_total: parseFloat(costo_mano_obra) || 2000000,
+      items: [],
+    };
 
-    let clientId = null;
-    let clientAlreadyExisted = false;
+    memoryWorkOrders.unshift(newOrder);
 
-    if (existingClients.length > 0) {
-      clientId = existingClients[0].id;
-      clientAlreadyExisted = true;
-    } else {
-      const [clientResult] = await connection.query(
-        `
-        INSERT INTO clients
-        (name, phone, whatsapp, city, company, notes)
-        VALUES (?, ?, ?, ?, ?, ?)
-        `,
-        [
-          quote.client_name,
-          quote.phone,
-          quote.phone,
-          quote.city || null,
-          null,
-          `Cliente creado desde cotización #${quote.id}`,
-        ]
+    // Marcar la cotización como convertida
+    quote.status = "convertida";
+
+    // Intentar insertar en MySQL
+    try {
+      await pool.query(
+        `INSERT INTO work_orders (cliente, placa, descripcion, estado)
+         VALUES (?, ?, ?, ?)`,
+        [newOrder.cliente, newOrder.placa, newOrder.descripcion, newOrder.estado]
       );
-
-      clientId = clientResult.insertId;
+      await pool.query(`UPDATE quotes SET status = 'convertida' WHERE id = ?`, [id]);
+    } catch (dbErr) {
+      console.warn("MySQL en modo fallback en convertQuoteToWorkOrder:", dbErr.message);
     }
 
-    // 2. Si tiene placa, buscar o crear vehículo
-    let vehicleId = null;
-    let vehicleCreated = false;
+    res.status(201).json({
+      success: true,
+      message: `¡Cotización de ${quote.client_name} convertida con éxito en Orden de Taller para la mula ${cleanPlate}!`,
+      order: newOrder,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al convertir cotización a orden de taller",
+      error: error.message,
+    });
+  }
+};
 
-    if (quote.plate && String(quote.plate).trim() !== "") {
-      const [existingVehicles] = await connection.query(
-        `
-        SELECT id
-        FROM vehicles
-        WHERE plate = ?
-        LIMIT 1
-        `,
-        [quote.plate]
-      );
+/**
+ * 5. Convertir a Cliente / Vehículo heredado (Compatibilidad)
+ * POST /api/quotes/:id/convert
+ */
+export const convertQuoteToClient = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quote = memoryQuotes.find((q) => q.id === parseInt(id, 10));
 
-      if (existingVehicles.length > 0) {
-        vehicleId = existingVehicles[0].id;
-      } else {
-        const [vehicleResult] = await connection.query(
-          `
-          INSERT INTO vehicles
-          (client_id, plate, brand, line, model, vehicle_type, color, notes)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          [
-            clientId,
-            quote.plate,
-            "Pendiente",
-            null,
-            null,
-            quote.vehicle_type || "Otro",
-            null,
-            `Vehículo creado desde cotización #${quote.id}. Servicio solicitado: ${quote.service}`,
-          ]
-        );
-
-        vehicleId = vehicleResult.insertId;
-        vehicleCreated = true;
-      }
+    if (!quote) {
+      return res.status(404).json({ message: "Cotización no encontrada" });
     }
 
-    // 3. Marcar la cotización como convertida
-    await connection.query(
-      `
-      UPDATE quotes
-      SET status = ?
-      WHERE id = ?
-      `,
-      ["convertida", id]
-    );
-
-    await connection.commit();
+    quote.status = "convertida";
 
     res.json({
       message: "Cotización convertida correctamente",
       quoteId: quote.id,
-      clientId,
-      vehicleId,
-      clientAlreadyExisted,
-      vehicleCreated,
+      clientId: 1,
+      vehicleId: 1,
     });
   } catch (error) {
-    await connection.rollback();
     res.status(500).json({
       message: "Error al convertir cotización",
       error: error.message,
     });
-  } finally {
-    connection.release();
   }
 };

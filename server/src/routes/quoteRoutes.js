@@ -3,6 +3,7 @@ import {
   createQuote,
   getQuotes,
   updateQuoteStatus,
+  convertQuoteToWorkOrder,
   convertQuoteToClient,
 } from "../controllers/quoteController.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -12,6 +13,7 @@ const router = express.Router();
 router.get("/", protect, getQuotes);
 router.post("/", createQuote);
 router.put("/:id/status", protect, updateQuoteStatus);
+router.post("/:id/to-workshop", protect, convertQuoteToWorkOrder);
 router.post("/:id/convert", protect, convertQuoteToClient);
 
 export default router;
