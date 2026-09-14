@@ -346,7 +346,7 @@ export default function PublicHome() {
             </div>
           </Link>
 
-          {/* Navegación Desktop con Isla Glassmorphic */}
+          {/* Navegación Desktop con Isla Glassmorphic (Secciones de contenido) */}
           <nav className="public-nav-island" aria-label="Navegación principal">
             <a href="#transformacion" className="nav-pill-link">
               <span className="nav-pill-icon">🎬</span>
@@ -360,15 +360,6 @@ export default function PublicHome() {
               <span className="nav-pill-icon">🛠️</span>
               <span>Servicios</span>
             </a>
-            <button
-              type="button"
-              onClick={() => handleOpenQuote()}
-              className="nav-pill-link"
-              style={{ background: "transparent", border: "1px solid transparent", cursor: "pointer" }}
-            >
-              <span className="nav-pill-icon">⚡</span>
-              <span>Cotizador</span>
-            </button>
           </nav>
 
           {/* Grupo de Acciones Ultra-Pro (WhatsApp exclusivo en botón flotante inferior) */}

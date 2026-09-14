@@ -43,6 +43,26 @@ export default function QuickQuoteModal({
 
   const [sending, setSending] = useState(false);
 
+  // Bloqueo de scroll del body y tecla Escape para cerrar
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+
+      const handleKeyDown = (e) => {
+        if (e.key === "Escape" || e.key === "Esc") {
+          onClose();
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     if (initialVehicle) {
       setForm((prev) => ({ ...prev, vehicle_type: initialVehicle }));
@@ -122,70 +142,139 @@ export default function QuickQuoteModal({
     }
   };
 
+  // Cierre garantizado al hacer clic o tap fuera del modal
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    }
+  };
+
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quote-modal-title"
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 9999,
+        zIndex: 99999,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "16px",
-        background: "rgba(6, 8, 12, 0.85)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        animation: "modal-fade-in 0.22s ease-out",
+        padding: "clamp(10px, 3vw, 24px)",
+        background: "rgba(4, 6, 10, 0.88)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        animation: "modalFadeIn 0.2s ease-out",
+        touchAction: "pan-y",
+        cursor: "pointer",
       }}
-      onClick={onClose}
+      onClick={handleBackdropClick}
+      onMouseDown={handleBackdropClick}
     >
       <div
         style={{
           position: "relative",
           width: "100%",
-          maxWidth: "600px",
-          maxHeight: "90vh",
+          maxWidth: "620px",
+          maxHeight: "92vh",
           overflowY: "auto",
-          background: "linear-gradient(180deg, #141722 0%, #0d0f16 100%)",
-          border: "1.5px solid rgba(245, 158, 11, 0.4)",
-          borderRadius: "20px",
-          padding: "24px 28px",
-          boxShadow: "0 25px 60px rgba(0, 0, 0, 0.95), 0 0 35px rgba(245, 158, 11, 0.15)",
+          WebkitOverflowScrolling: "touch",
+          background: "linear-gradient(180deg, #131722 0%, #0b0e15 100%)",
+          border: "1.5px solid rgba(245, 158, 11, 0.45)",
+          borderRadius: "clamp(14px, 3vw, 22px)",
+          padding: "clamp(16px, 3.5vw, 28px)",
+          boxShadow: "0 25px 70px rgba(0, 0, 0, 0.95), 0 0 40px rgba(245, 158, 11, 0.18)",
           color: "#f8fafc",
+          cursor: "default",
         }}
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Cabecera del Modal */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "18px" }}>
-          <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", borderRadius: "6px", padding: "3px 10px", marginBottom: "6px" }}>
-              <span style={{ fontSize: "0.75rem", color: "#fbbf24", fontWeight: 900, letterSpacing: "0.06em" }}>
+        {/* Cabecera del Modal con Botón X de 44px Táctil */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "12px",
+            marginBottom: "16px",
+            position: "relative",
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "rgba(245, 158, 11, 0.15)",
+                border: "1px solid rgba(245, 158, 11, 0.45)",
+                borderRadius: "6px",
+                padding: "4px 10px",
+                marginBottom: "8px",
+              }}
+            >
+              <span style={{ fontSize: "0.72rem", color: "#fbbf24", fontWeight: 900, letterSpacing: "0.06em" }}>
                 ⚡ COTIZACIÓN EXPRESS SIN ESPERAS
               </span>
             </div>
-            <h3 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 900, color: "#fff" }}>
+            <h3
+              id="quote-modal-title"
+              style={{
+                margin: 0,
+                fontSize: "clamp(1.15rem, 3.5vw, 1.45rem)",
+                fontWeight: 900,
+                color: "#fff",
+                lineHeight: 1.2,
+              }}
+            >
               Personaliza Tu Mula en Mellos Truck
             </h3>
-            <p style={{ margin: "4px 0 0 0", fontSize: "0.82rem", color: "#94a3b8" }}>
-              Elige tus accesorios y te conectamos de inmediato por WhatsApp con precio de taller.
+            <p style={{ margin: "4px 0 0 0", fontSize: "0.82rem", color: "#94a3b8", lineHeight: 1.3 }}>
+              Elige tus accesorios y te respondemos de inmediato por WhatsApp con precio de taller.
             </p>
           </div>
 
+          {/* Botón X de Cierre Ultra-Accesible y Táctil (44x44px) */}
           <button
             type="button"
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            aria-label="Cerrar cotizador"
+            title="Cerrar ventana (Esc)"
             style={{
-              background: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              color: "#cbd5e1",
-              width: "32px",
-              height: "32px",
+              flexShrink: 0,
+              background: "rgba(255, 255, 255, 0.08)",
+              border: "1.5px solid rgba(245, 158, 11, 0.35)",
+              color: "#fbbf24",
+              width: "44px",
+              height: "44px",
+              minWidth: "44px",
+              minHeight: "44px",
               borderRadius: "50%",
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
-              fontSize: "0.9rem",
-              transition: "all 0.2s ease",
+              fontSize: "1.1rem",
+              fontWeight: "900",
+              transition: "all 0.18s ease",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f59e0b";
+              e.currentTarget.style.color = "#000";
+              e.currentTarget.style.transform = "scale(1.08)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+              e.currentTarget.style.color = "#fbbf24";
+              e.currentTarget.style.transform = "scale(1)";
             }}
           >
             ✕
@@ -264,8 +353,8 @@ export default function QuickQuoteModal({
             </div>
           </div>
 
-          {/* Paso 3: Datos de Contacto */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          {/* Paso 3: Datos de Contacto Responsivos */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
             <div>
               <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 800, color: "#cbd5e1", marginBottom: "4px" }}>
                 Tu Nombre: *
@@ -278,6 +367,7 @@ export default function QuickQuoteModal({
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 style={{
                   width: "100%",
+                  boxSizing: "border-box",
                   padding: "10px 12px",
                   borderRadius: "8px",
                   background: "#0a0c12",
@@ -301,6 +391,7 @@ export default function QuickQuoteModal({
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 style={{
                   width: "100%",
+                  boxSizing: "border-box",
                   padding: "10px 12px",
                   borderRadius: "8px",
                   background: "#0a0c12",
@@ -313,7 +404,7 @@ export default function QuickQuoteModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
             <div>
               <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 800, color: "#94a3b8", marginBottom: "4px" }}>
                 Ciudad / Ruta habitual:
@@ -325,6 +416,7 @@ export default function QuickQuoteModal({
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
                 style={{
                   width: "100%",
+                  boxSizing: "border-box",
                   padding: "10px 12px",
                   borderRadius: "8px",
                   background: "#0a0c12",
@@ -346,6 +438,7 @@ export default function QuickQuoteModal({
                 onChange={(e) => setForm({ ...form, plate: e.target.value.toUpperCase() })}
                 style={{
                   width: "100%",
+                  boxSizing: "border-box",
                   padding: "10px 12px",
                   borderRadius: "8px",
                   background: "#0a0c12",
@@ -370,6 +463,7 @@ export default function QuickQuoteModal({
               onChange={(e) => setForm({ ...form, details: e.target.value })}
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 padding: "10px 12px",
                 borderRadius: "8px",
                 background: "#0a0c12",
@@ -380,31 +474,68 @@ export default function QuickQuoteModal({
             />
           </div>
 
-          {/* Botón Principal de Enviar */}
-          <button
-            type="submit"
-            disabled={sending}
-            style={{
-              marginTop: "6px",
-              background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-              color: "#000",
-              border: "none",
-              padding: "13px 20px",
-              borderRadius: "12px",
-              fontWeight: 900,
-              fontSize: "0.92rem",
-              letterSpacing: "0.04em",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              boxShadow: "0 6px 22px rgba(245, 158, 11, 0.4)",
-              transition: "all 0.22s ease",
-            }}
-          >
-            <span>{sending ? "⏳ Conectando..." : "🚀 Chatear por WhatsApp con Asesor de Taller"}</span>
-          </button>
+          {/* Botones de Acción (Envío Express + Cancelar) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "8px" }}>
+            <button
+              type="submit"
+              disabled={sending}
+              style={{
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                color: "#000",
+                border: "none",
+                padding: "14px 20px",
+                borderRadius: "12px",
+                fontWeight: 900,
+                fontSize: "0.94rem",
+                letterSpacing: "0.04em",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                boxShadow: "0 6px 22px rgba(245, 158, 11, 0.4)",
+                transition: "all 0.22s ease",
+              }}
+            >
+              <span>{sending ? "⏳ Conectando..." : "🚀 Enviar Cotización Inmediata por WhatsApp"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+              style={{
+                background: "transparent",
+                color: "#94a3b8",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                padding: "10px 18px",
+                borderRadius: "10px",
+                fontWeight: 700,
+                fontSize: "0.84rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                transition: "all 0.18s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.borderColor = "#475569";
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#94a3b8";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.12)";
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <span>✕ Cancelar y Volver a la Página</span>
+            </button>
+          </div>
         </form>
       </div>
     </div>
