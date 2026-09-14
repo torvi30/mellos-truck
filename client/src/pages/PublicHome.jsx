@@ -236,6 +236,81 @@ export default function PublicHome() {
         </div>
       </section>
 
+      {/* 3.1 Flota de Transformaciones Reales */}
+      <section className="public-section" style={{ background: "linear-gradient(180deg, #0b0c0f 0%, #12141a 100%)", padding: "4.5rem 0", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="public-container">
+          <div className="section-heading">
+            <span className="subheading-neon">PROYECTOS ENTREGADOS EN TALLER</span>
+            <h2>Naves que Ya Dominan las Carreteras</h2>
+            <p>
+              Explora las transformaciones artesanales más imponentes de Colombia: Kenworth, Mack y Peterbilt modificadas con orgullo en Mellos Truck.
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))", gap: "1.8rem", marginTop: "2rem" }}>
+            {/* Kenworth T800 */}
+            <div style={{ overflow: "hidden", borderRadius: "16px", border: "1px solid rgba(245, 158, 11, 0.25)", background: "#14161c", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+              <div style={{ position: "relative", height: "200px" }}>
+                <img src="/images/showroom/kenworth_after.jpg" alt="Kenworth T800" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <div style={{ position: "absolute", top: "12px", left: "12px", background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)", color: "#000", fontWeight: "900", fontSize: "0.85rem", letterSpacing: "0.14em", padding: "0.2rem 0.6rem", borderRadius: "4px", border: "1.5px solid #000" }}>
+                  WTL-892
+                </div>
+              </div>
+              <div style={{ padding: "1.4rem" }}>
+                <span style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: "800", textTransform: "uppercase" }}>KENWORTH • ACERO ESPEJO 304</span>
+                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>Kenworth T800 Aerocab</h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
+                  Bomper artesanal de 20" con corte láser, visera americana tipo espejo y doble corneta Hadley 24V.
+                </p>
+                <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="primary-btn" style={{ display: "block", textAlign: "center", marginTop: "1rem", fontSize: "0.85rem" }}>
+                  ⚡ Ver Showroom 4K
+                </Link>
+              </div>
+            </div>
+
+            {/* Mack Vision Elite */}
+            <div style={{ overflow: "hidden", borderRadius: "16px", border: "1px solid rgba(251, 146, 60, 0.25)", background: "#14161c", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+              <div style={{ position: "relative", height: "200px" }}>
+                <img src="/images/showroom/mack_truck_custom.jpg" alt="Mack Vision" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <div style={{ position: "absolute", top: "12px", left: "12px", background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)", color: "#000", fontWeight: "900", fontSize: "0.85rem", letterSpacing: "0.14em", padding: "0.2rem 0.6rem", borderRadius: "4px", border: "1.5px solid #000" }}>
+                  SZZ-514
+                </div>
+              </div>
+              <div style={{ padding: "1.4rem" }}>
+                <span style={{ fontSize: "0.75rem", color: "#fb923c", fontWeight: "800", textTransform: "uppercase" }}>MACK • ROJO RUBÍ METALIZADO</span>
+                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>Mack Vision Elite</h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
+                  Tuberías de escape gemelas pulidas, rines con spikes en punta y bomper americano de diseño envolvente.
+                </p>
+                <Link to="/galeria/Mack-Vision-Placa-SZZ514" className="primary-btn" style={{ display: "block", textAlign: "center", marginTop: "1rem", fontSize: "0.85rem", background: "linear-gradient(135deg, #fb923c, #ea580c)", color: "#000" }}>
+                  ⚡ Ver Showroom 4K
+                </Link>
+              </div>
+            </div>
+
+            {/* Peterbilt 389 */}
+            <div style={{ overflow: "hidden", borderRadius: "16px", border: "1px solid rgba(52, 211, 153, 0.25)", background: "#14161c", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+              <div style={{ position: "relative", height: "200px" }}>
+                <img src="/images/showroom/peterbilt_truck_custom.jpg" alt="Peterbilt 389" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <div style={{ position: "absolute", top: "12px", left: "12px", background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)", color: "#000", fontWeight: "900", fontSize: "0.85rem", letterSpacing: "0.14em", padding: "0.2rem 0.6rem", borderRadius: "4px", border: "1.5px solid #000" }}>
+                  UFT-621
+                </div>
+              </div>
+              <div style={{ padding: "1.4rem" }}>
+                <span style={{ fontSize: "0.75rem", color: "#34d399", fontWeight: "800", textTransform: "uppercase" }}>PETERBILT • VERDE ESMERALDA</span>
+                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>Peterbilt 389 Pride & Class</h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
+                  Pintura poliuretano de alta resistencia, rines Alcoa pulidos espejo y visera americana en acero inoxidable.
+                </p>
+                <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="primary-btn" style={{ display: "block", textAlign: "center", marginTop: "1rem", fontSize: "0.85rem", background: "linear-gradient(135deg, #10b981, #059669)", color: "#000" }}>
+                  ⚡ Ver Showroom 4K
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 4. Módulo Showroom & Magic Link Explanation */}
       <section className="public-section dark-section" id="showroom">
         <div className="public-container magic-link-feature-grid">
