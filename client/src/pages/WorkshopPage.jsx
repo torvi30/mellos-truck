@@ -49,6 +49,9 @@ export default function WorkshopPage() {
     cantidad: 1,
   });
 
+  // Modal personalizado para confirmar eliminación/cancelación de orden
+  const [deleteConfirmData, setDeleteConfirmData] = useState(null);
+
   // Notificaciones Toast
   const [feedback, setFeedback] = useState(null);
 
@@ -229,23 +232,28 @@ export default function WorkshopPage() {
     }
   };
 
-  // Eliminar orden
-  const handleDeleteOrder = async (orderId, plate) => {
-    if (!window.confirm(`¿Seguro de retirar la orden de la mula ${plate}? Las piezas volverán al inventario.`)) {
-      return;
-    }
+  // Solicitar confirmación para eliminar orden (Abre modal oscuro pro, sin alertas feas del navegador)
+  const handleDeleteOrder = (orderId, plate, itemsCount = 0) => {
+    setDeleteConfirmData({ id: orderId, plate, itemsCount });
+  };
 
+  // Ejecutar eliminación confirmada y devolver repuestos al stock
+  const executeDeleteOrder = async (orderId, plate) => {
     try {
       const res = await fetch(`${API_BASE}/work-orders/${orderId}`, {
         method: "DELETE",
       });
 
       if (res.ok) {
-        showNotification(`Mula ${plate} retirada del taller`);
+        showNotification(`Orden de la mula ${plate} cancelada y eliminada`);
+        setDeleteConfirmData(null);
         if (activeTruckDetail && activeTruckDetail.id === orderId) {
           setActiveTruckDetail(null);
         }
         loadData();
+      } else {
+        const errData = await res.json();
+        showNotification(errData.message || "Error al eliminar orden", "error");
       }
     } catch (err) {
       showNotification("Error al eliminar orden", "error");
@@ -783,21 +791,49 @@ export default function WorkshopPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteOrder(activeTruckDetail.id, activeTruckDetail.placa)}
-                  style={{
-                    background: "rgba(239, 68, 68, 0.15)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    color: "#f87171",
-                    padding: "0.4rem 0.8rem",
-                    borderRadius: "8px",
-                    fontSize: "0.78rem",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                  }}
-                >
-                  🗑️ Retirar Mula del Taller
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+                  {activeTruckDetail.estado === "Entregado" ? (
+                    <div
+                      style={{
+                        background: "rgba(56, 189, 248, 0.18)",
+                        border: "1px solid rgba(56, 189, 248, 0.5)",
+                        color: "#38bdf8",
+                        padding: "0.45rem 0.9rem",
+                        borderRadius: "8px",
+                        fontSize: "0.8rem",
+                        fontWeight: "900",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        boxShadow: "0 0 15px rgba(56, 189, 248, 0.2)",
+                      }}
+                    >
+                      <span>🚚</span>
+                      <span>DESPACHADA A CARRETERA</span>
+                    </div>
+                  ) : activeTruckDetail.estado === "Terminado" ? (
+                    <button
+                      onClick={() => handleMoveStage(activeTruckDetail.id, "Entregado")}
+                      style={{
+                        background: "linear-gradient(135deg, #10b981, #059669)",
+                        border: "none",
+                        color: "#000",
+                        padding: "0.5rem 1rem",
+                        borderRadius: "8px",
+                        fontSize: "0.82rem",
+                        fontWeight: "900",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 15px rgba(16, 185, 129, 0.4)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                      }}
+                    >
+                      <span>🚚</span>
+                      <span>Despachar a Carretera</span>
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
 
@@ -1112,22 +1148,42 @@ export default function WorkshopPage() {
                   paddingTop: "1.2rem",
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  style={{
-                    padding: "0.65rem 1.2rem",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#cbd5e1",
-                    borderRadius: "8px",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  🖨️ Imprimir Ficha de Parabrisas
-                </button>
+                <div style={{ display: "flex", gap: "0.6rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    style={{
+                      padding: "0.65rem 1.1rem",
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: "#cbd5e1",
+                      borderRadius: "8px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      fontSize: "0.82rem",
+                    }}
+                  >
+                    🖨️ Imprimir Ficha
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteOrder(activeTruckDetail.id, activeTruckDetail.placa, (activeTruckDetail.items || []).length)}
+                    style={{
+                      padding: "0.65rem 0.9rem",
+                      background: "rgba(239, 68, 68, 0.08)",
+                      border: "1px solid rgba(239, 68, 68, 0.25)",
+                      color: "#f87171",
+                      borderRadius: "8px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      fontSize: "0.82rem",
+                    }}
+                    title="Cancelar o anular orden"
+                  >
+                    🗑️ Anular Orden
+                  </button>
+                </div>
 
                 <div style={{ display: "flex", gap: "0.8rem" }}>
                   <button
@@ -1394,6 +1450,85 @@ export default function WorkshopPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PERSONALIZADO DARK: Confirmación de Anulación / Eliminación */}
+      {deleteConfirmData && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(12px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 20000,
+            padding: "1.5rem",
+          }}
+        >
+          <div
+            style={{
+              background: "#161822",
+              border: "1px solid rgba(239, 68, 68, 0.4)",
+              borderRadius: "16px",
+              padding: "2rem",
+              maxWidth: "500px",
+              width: "100%",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.8), 0 0 30px rgba(239, 68, 68, 0.2)",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "3rem", marginBottom: "0.8rem" }}>⚠️</div>
+            <h3 style={{ fontSize: "1.3rem", fontWeight: "900", color: "#f87171", margin: "0 0 0.8rem 0" }}>
+              ¿Anular Orden de la Mula {deleteConfirmData.plate}?
+            </h3>
+            <p style={{ fontSize: "0.88rem", color: "#94a3b8", lineHeight: "1.6", margin: "0 0 1.2rem 0" }}>
+              Si la mula <strong style={{ color: "#fff" }}>ya terminó su trabajo y salió del taller</strong>, no necesitas anularla: simplemente déjala en estado <span style={{ color: "#38bdf8", fontWeight: "800" }}>ENTREGADO</span> para conservar su historial contable y su Showroom 4K.
+            </p>
+            <div style={{ background: "rgba(239, 68, 68, 0.08)", border: "1px dashed rgba(239, 68, 68, 0.3)", borderRadius: "8px", padding: "0.8rem", fontSize: "0.82rem", color: "#fca5a5", marginBottom: "1.5rem" }}>
+              Al anularla, sus <strong style={{ color: "#fff" }}>{deleteConfirmData.itemsCount || 0} piezas</strong> asignadas se reintegrarán automáticamente al stock disponible del Container.
+            </div>
+
+            <div style={{ display: "flex", gap: "0.8rem", justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmData(null)}
+                style={{
+                  flex: 1,
+                  padding: "0.75rem 1.2rem",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "#e2e8f0",
+                  borderRadius: "10px",
+                  fontWeight: "800",
+                  fontSize: "0.88rem",
+                  cursor: "pointer",
+                }}
+              >
+                Conservar Orden
+              </button>
+              <button
+                type="button"
+                onClick={() => executeDeleteOrder(deleteConfirmData.id, deleteConfirmData.plate)}
+                style={{
+                  flex: 1,
+                  padding: "0.75rem 1.2rem",
+                  background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                  border: "none",
+                  color: "#fff",
+                  borderRadius: "10px",
+                  fontWeight: "900",
+                  fontSize: "0.88rem",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 15px rgba(239, 68, 68, 0.4)",
+                }}
+              >
+                Sí, Anular Registro
+              </button>
+            </div>
           </div>
         </div>
       )}
