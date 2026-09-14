@@ -3,7 +3,67 @@ import { Link } from "react-router-dom";
 import BeforeAfterSlider from "../components/BeforeAfterSlider";
 import { showSuccessToast, showErrorToast } from "../utils/alerts";
 
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, "")}/api`
+  : "http://localhost:4000/api";
+
+const DEFAULT_CONFIG = {
+  whatsappNumber: "573104567890",
+  whatsappDefaultMsg: "Hola Mellos Truck, quiero cotizar accesorios y trabajos de taller para mi camión",
+  instagramUser: "@mellos_trucks",
+  instagramUrl: "https://www.instagram.com/mellos_trucks/",
+  locationText: "Fontibón Zona Industrial, Bogotá D.C. & Medellín, Colombia",
+
+  announcementBar: {
+    enabled: true,
+    badgeText: "🔥 CUPOS LIMITADOS",
+    message: "Fabricación artesanal de Bompers en Acero 304 con entrega prioritaria este mes.",
+    buttonText: "Cotizar por WhatsApp ➔",
+    link: "#cotizar",
+  },
+
+  hero: {
+    badgeText: "LÍDERES EN MODIFICACIÓN DE PESADOS",
+    headline: "POTENCIA, ACERO & PRESENCIA PARA TU TRACTOMULA",
+    subtitle:
+      "En Mellos Truck convertimos tu vehículo de carga pesada en una verdadera obra de arte en carretera. Fabricación artesanal de bompers en acero inoxidable, viseras americanas, iluminación LED y lujos que imponen respeto en cualquier ruta.",
+    ctaPrimaryText: "⚡ Cotizar Mi Nave Ahora",
+    ctaPrimaryLink: "#cotizar",
+    ctaSecondaryText: "🎬 Explorar Showroom 4K",
+    ctaSecondaryLink: "/galeria/Kenworth-T800-Placa-WTL892",
+    featuredTruck: {
+      tag: "PROYECTO DESTACADO",
+      title: "Kenworth T800 Aerocab",
+      specs: 'Bomper 20" • Visera Espejo • Doble Corneta',
+      imageUrl: "/images/showroom/kenworth_after.jpg",
+      magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
+    },
+  },
+
+  metrics: [
+    { value: "100% Acero", label: "Inoxidable Calidad 304" },
+    { value: "+1,200", label: "Mulas Transformadas" },
+    { value: "Garantía", label: "De Taller & Soldadura TIG" },
+  ],
+
+  beforeAfter: {
+    subheading: "EL CAMBIO HABLA POR SÍ SOLO",
+    title: "Intervención Real de Taller: Antes vs. Después",
+    description:
+      "Desliza la manija amarilla para ver la transformación de esta nave: desde su llegada con bomper de fábrica hasta la entrega con acero cromado tipo espejo y accesorios de lujo.",
+    truckTitle: "Kenworth T800 • Placa WTL-892",
+    truckDescription: "Transformación completa de estética, iluminación perimetral y bomper de acero inoxidable.",
+    beforeImage: "/images/showroom/kenworth_before.jpg",
+    afterImage: "/images/showroom/kenworth_after.jpg",
+    beforeLabel: "ANTES (Llegada al taller)",
+    afterLabel: "DESPUÉS (Mellos Truck)",
+    projectLink: "/galeria/Kenworth-T800-Placa-WTL892",
+  },
+};
+
 export default function PublicHome() {
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -17,8 +77,28 @@ export default function PublicHome() {
   const [message, setMessage] = useState("");
   const [liveProducts, setLiveProducts] = useState([]);
 
+  // 1. Cargar configuración dinámica de la Landing Page
   useEffect(() => {
-    fetch("http://localhost:4000/api/products")
+    fetch(`${API_BASE}/settings/landing`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.config) {
+          setConfig((prev) => ({
+            ...prev,
+            ...data.config,
+            hero: { ...prev.hero, ...(data.config.hero || {}) },
+            announcementBar: { ...prev.announcementBar, ...(data.config.announcementBar || {}) },
+            beforeAfter: { ...prev.beforeAfter, ...(data.config.beforeAfter || {}) },
+            metrics: Array.isArray(data.config.metrics) && data.config.metrics.length > 0 ? data.config.metrics : prev.metrics,
+          }));
+        }
+      })
+      .catch((err) => console.warn("Usando configuración local de portada:", err));
+  }, []);
+
+  // 2. Cargar productos destacados del Container
+  useEffect(() => {
+    fetch(`${API_BASE}/products`)
       .then((res) => res.json())
       .then((data) => {
         if (data.products && data.products.length > 0) {
@@ -27,6 +107,8 @@ export default function PublicHome() {
       })
       .catch((err) => console.warn("Usando catálogo estático destacado:", err));
   }, []);
+
+  const cleanWaNumber = (config?.whatsappNumber || "573104567890").replace(/\D/g, "");
 
   const services = [
     {
@@ -51,7 +133,7 @@ export default function PublicHome() {
     },
   ];
 
-  const featuredProducts = [
+  const fallbackFeaturedProducts = [
     {
       title: "Bomper de Acero Inoxidable 20\" con Luces LED",
       category: "Estructura & Cromo",
@@ -83,7 +165,7 @@ export default function PublicHome() {
         description: p.descripcion || `Stock disponible: ${p.stock} unidades en el Container.`,
         price: p.precio_venta,
       }))
-    : featuredProducts;
+    : fallbackFeaturedProducts;
 
   const handleChange = (e) => {
     setForm({
@@ -104,7 +186,7 @@ export default function PublicHome() {
     setMessage("");
 
     try {
-      const response = await fetch("http://localhost:4000/api/quotes", {
+      const response = await fetch(`${API_BASE}/quotes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -127,16 +209,48 @@ export default function PublicHome() {
       setLoading(false);
       setMessage("✅ ¡Solicitud enviada! Te estamos conectando con un asesor por WhatsApp...");
 
-      // Redirigir a WhatsApp con el mensaje pre-cargado
+      // Redirigir a WhatsApp con el mensaje pre-cargado al número dinámico configurado en admin
       const waText = encodeURIComponent(
         `¡Hola Mellos Truck! 🚛🔥\nQuiero cotizar para mi vehículo:\n- Nombre: ${form.name}\n- Mula/Camión: ${form.vehicle_type} (Placa: ${form.plate || "Sin especificar"})\n- Servicio: ${form.service}\n- Ciudad: ${form.city}\n- Detalles: ${form.details || "Quiero más información de precios y tiempos."}`
       );
-      window.open(`https://wa.me/573000000000?text=${waText}`, "_blank");
+      window.open(`https://wa.me/${cleanWaNumber}?text=${waText}`, "_blank");
     }
   };
 
   return (
     <div className="public-page">
+      {/* 0. Barra Superior de Anuncios Promocionales (Configurable desde Admin) */}
+      {config?.announcementBar?.enabled && !announcementDismissed && (
+        <aside className="top-announcement-bar" aria-label="Aviso promocional">
+          <div className="announcement-content">
+            <span className="announcement-badge">{config.announcementBar.badgeText}</span>
+            <span className="announcement-text">{config.announcementBar.message}</span>
+            {config.announcementBar.buttonText && (
+              <a
+                href={
+                  config.announcementBar.link?.startsWith("#")
+                    ? config.announcementBar.link
+                    : `https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(
+                        "Hola Mellos Truck, me interesa el anuncio: " + config.announcementBar.message
+                      )}`
+                }
+                className="announcement-btn"
+              >
+                {config.announcementBar.buttonText}
+              </a>
+            )}
+          </div>
+          <button
+            onClick={() => setAnnouncementDismissed(true)}
+            className="announcement-close"
+            title="Cerrar anuncio"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </aside>
+      )}
+
       {/* 1. Header Pro */}
       <header className="public-header">
         <div className="public-container header-inner">
@@ -151,20 +265,28 @@ export default function PublicHome() {
           <nav className="public-nav">
             <a href="#transformacion">Showroom & Transformaciones</a>
             <a href="#catalogo">Tienda Container</a>
+            <a href="#servicios">Servicios</a>
             <a href="#cotizar">Cotizar Mula</a>
           </nav>
 
           <div className="header-cta-group">
-            <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="btn-header-magic">
-              ⚡ Ver Showroom 4K
+            <Link
+              to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}
+              className="btn-header-magic"
+            >
+              <span>⚡</span>
+              <span>Ver Showroom 4K</span>
             </Link>
             <a
-              className="primary-btn header-btn"
-              href="https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20quiero%20cotizar%20accesorios%20para%20mi%20cami%C3%B3n"
+              className="btn-header-wa"
+              href={`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(
+                config.whatsappDefaultMsg || "Hola Mellos Truck, quiero cotizar accesorios para mi camión"
+              )}`}
               target="_blank"
               rel="noreferrer"
             >
-              💬 WhatsApp
+              <span>💬</span>
+              <span>WhatsApp</span>
             </a>
           </div>
         </div>
@@ -176,52 +298,48 @@ export default function PublicHome() {
           <div className="hero-copy">
             <div className="hero-badge-container">
               <span className="hero-badge-dot"></span>
-              <span className="hero-badge">LÍDERES EN MODIFICACIÓN DE PESADOS</span>
+              <span className="hero-badge">{config.hero.badgeText}</span>
             </div>
-            <h1>
-              POTENCIA, ACERO & PRESENCIA PARA TU TRACTOMULA
-            </h1>
-            <p>
-              En <strong>Mellos Truck</strong> convertimos tu vehículo de carga pesada en una verdadera obra de arte en carretera. Fabricación artesanal de bompers en acero inoxidable, viseras americanas, iluminación LED y lujos que imponen respeto en cualquier ruta.
-            </p>
+            <h1>{config.hero.headline}</h1>
+            <p>{config.hero.subtitle}</p>
 
             <div className="hero-actions">
-              <a href="#cotizar" className="primary-btn pulse-btn">
-                ⚡ Cotizar Mi Nave Ahora
+              <a href={config.hero.ctaPrimaryLink || "#cotizar"} className="primary-btn pulse-btn">
+                {config.hero.ctaPrimaryText || "⚡ Cotizar Mi Nave Ahora"}
               </a>
-              <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="secondary-btn">
-                🎬 Explorar Showroom 4K
+              <Link
+                to={config.hero.ctaSecondaryLink || "/galeria/Kenworth-T800-Placa-WTL892"}
+                className="secondary-btn"
+              >
+                {config.hero.ctaSecondaryText || "🎬 Explorar Showroom 4K"}
               </Link>
             </div>
 
             <div className="hero-metrics">
-              <div className="metric-card">
-                <strong>100% Acero</strong>
-                <span>Inoxidable Calidad 304</span>
-              </div>
-              <div className="metric-card">
-                <strong>+1,200</strong>
-                <span>Mulas Transformadas</span>
-              </div>
-              <div className="metric-card">
-                <strong>Garantía</strong>
-                <span>De Taller & Soldadura TIG</span>
-              </div>
+              {config.metrics.map((m, idx) => (
+                <div className="metric-card" key={idx}>
+                  <strong>{m.value}</strong>
+                  <span>{m.label}</span>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="hero-visual">
             <div className="hero-featured-image-wrapper">
               <img
-                src="/images/showroom/kenworth_after.jpg"
-                alt="Kenworth T800 Personalizada por Mellos Truck"
+                src={config.hero.featuredTruck.imageUrl}
+                alt={config.hero.featuredTruck.title}
                 className="hero-main-truck-img"
               />
               <div className="hero-image-overlay-card">
-                <span className="overlay-tag">PROYECTO DESTACADO</span>
-                <h4>Kenworth T800 Aerocab</h4>
-                <p>Bomper 20" • Visera Espejo • Doble Corneta</p>
-                <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="overlay-link">
+                <span className="overlay-tag">{config.hero.featuredTruck.tag}</span>
+                <h4>{config.hero.featuredTruck.title}</h4>
+                <p>{config.hero.featuredTruck.specs}</p>
+                <Link
+                  to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}
+                  className="overlay-link"
+                >
                   Ver Magic Link del Vehículo ➜
                 </Link>
               </div>
@@ -234,27 +352,28 @@ export default function PublicHome() {
       <section className="public-section transformacion-section" id="transformacion">
         <div className="public-container">
           <div className="section-heading">
-            <span className="subheading-neon">EL CAMBIO HABLA POR SÍ SOLO</span>
-            <h2>Intervención Real de Taller: Antes vs. Después</h2>
-            <p>
-              Desliza la manija amarilla para ver la transformación de esta Kenworth T800: desde su llegada con bomper de fábrica hasta la entrega con acero cromado tipo espejo y accesorios de lujo.
-            </p>
+            <span className="subheading-neon">{config.beforeAfter.subheading}</span>
+            <h2>{config.beforeAfter.title}</h2>
+            <p>{config.beforeAfter.description}</p>
           </div>
 
           <div className="home-slider-wrapper">
             <BeforeAfterSlider
-              beforeImage="/images/showroom/kenworth_before.jpg"
-              afterImage="/images/showroom/kenworth_after.jpg"
-              beforeLabel="ANTES (Llegada al taller)"
-              afterLabel="DESPUÉS (Mellos Truck)"
+              beforeImage={config.beforeAfter.beforeImage}
+              afterImage={config.beforeAfter.afterImage}
+              beforeLabel={config.beforeAfter.beforeLabel}
+              afterLabel={config.beforeAfter.afterLabel}
               aspectRatio="16/9"
             />
             <div className="slider-bottom-meta">
               <div className="meta-left">
-                <strong>Kenworth T800 • Placa WTL-892</strong>
-                <p>Transformación completa de estética, iluminación perimetral y bomper de acero inoxidable.</p>
+                <strong>{config.beforeAfter.truckTitle}</strong>
+                <p>{config.beforeAfter.truckDescription}</p>
               </div>
-              <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="btn-view-project">
+              <Link
+                to={config.beforeAfter.projectLink || "/galeria/Kenworth-T800-Placa-WTL892"}
+                className="btn-view-project"
+              >
                 🎬 Ver Video & Ficha Completa del Proyecto
               </Link>
             </div>
@@ -263,7 +382,15 @@ export default function PublicHome() {
       </section>
 
       {/* 3.1 Flota de Transformaciones Reales */}
-      <section className="public-section" style={{ background: "linear-gradient(180deg, #0b0c0f 0%, #12141a 100%)", padding: "4.5rem 0", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <section
+        className="public-section"
+        style={{
+          background: "linear-gradient(180deg, #0b0c0f 0%, #12141a 100%)",
+          padding: "4.5rem 0",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
         <div className="public-container">
           <div className="section-heading">
             <span className="subheading-neon">PROYECTOS ENTREGADOS EN TALLER</span>
@@ -273,62 +400,185 @@ export default function PublicHome() {
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))", gap: "1.8rem", marginTop: "2rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
+              gap: "1.8rem",
+              marginTop: "2rem",
+            }}
+          >
             {/* Kenworth T800 */}
-            <div style={{ overflow: "hidden", borderRadius: "16px", border: "1px solid rgba(245, 158, 11, 0.25)", background: "#14161c", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+            <div
+              style={{
+                overflow: "hidden",
+                borderRadius: "16px",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                background: "#14161c",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+              }}
+            >
               <div style={{ position: "relative", height: "200px" }}>
-                <img src="/images/showroom/kenworth_after.jpg" alt="Kenworth T800" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                <div style={{ position: "absolute", top: "12px", left: "12px", background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)", color: "#000", fontWeight: "900", fontSize: "0.85rem", letterSpacing: "0.14em", padding: "0.2rem 0.6rem", borderRadius: "4px", border: "1.5px solid #000" }}>
+                <img
+                  src="/images/showroom/kenworth_after.jpg"
+                  alt="Kenworth T800"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "12px",
+                    left: "12px",
+                    background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                    color: "#000",
+                    fontWeight: "900",
+                    fontSize: "0.85rem",
+                    letterSpacing: "0.14em",
+                    padding: "0.2rem 0.6rem",
+                    borderRadius: "4px",
+                    border: "1.5px solid #000",
+                  }}
+                >
                   WTL-892
                 </div>
               </div>
               <div style={{ padding: "1.4rem" }}>
-                <span style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: "800", textTransform: "uppercase" }}>KENWORTH • ACERO ESPEJO 304</span>
-                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>Kenworth T800 Aerocab</h3>
+                <span style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: "800", textTransform: "uppercase" }}>
+                  KENWORTH • ACERO ESPEJO 304
+                </span>
+                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>
+                  Kenworth T800 Aerocab
+                </h3>
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
                   Bomper artesanal de 20" con corte láser, visera americana tipo espejo y doble corneta Hadley 24V.
                 </p>
-                <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="primary-btn" style={{ display: "block", textAlign: "center", marginTop: "1rem", fontSize: "0.85rem" }}>
+                <Link
+                  to="/galeria/Kenworth-T800-Placa-WTL892"
+                  className="primary-btn"
+                  style={{ display: "flex", justifyContent: "center", marginTop: "1rem", fontSize: "0.85rem" }}
+                >
                   ⚡ Ver Showroom 4K
                 </Link>
               </div>
             </div>
 
             {/* Mack Vision Elite */}
-            <div style={{ overflow: "hidden", borderRadius: "16px", border: "1px solid rgba(251, 146, 60, 0.25)", background: "#14161c", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+            <div
+              style={{
+                overflow: "hidden",
+                borderRadius: "16px",
+                border: "1px solid rgba(251, 146, 60, 0.25)",
+                background: "#14161c",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+              }}
+            >
               <div style={{ position: "relative", height: "200px" }}>
-                <img src="/images/showroom/mack_truck_custom.jpg" alt="Mack Vision" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                <div style={{ position: "absolute", top: "12px", left: "12px", background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)", color: "#000", fontWeight: "900", fontSize: "0.85rem", letterSpacing: "0.14em", padding: "0.2rem 0.6rem", borderRadius: "4px", border: "1.5px solid #000" }}>
+                <img
+                  src="/images/showroom/mack_truck_custom.jpg"
+                  alt="Mack Vision"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "12px",
+                    left: "12px",
+                    background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                    color: "#000",
+                    fontWeight: "900",
+                    fontSize: "0.85rem",
+                    letterSpacing: "0.14em",
+                    padding: "0.2rem 0.6rem",
+                    borderRadius: "4px",
+                    border: "1.5px solid #000",
+                  }}
+                >
                   SZZ-514
                 </div>
               </div>
               <div style={{ padding: "1.4rem" }}>
-                <span style={{ fontSize: "0.75rem", color: "#fb923c", fontWeight: "800", textTransform: "uppercase" }}>MACK • ROJO RUBÍ METALIZADO</span>
-                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>Mack Vision Elite</h3>
+                <span style={{ fontSize: "0.75rem", color: "#fb923c", fontWeight: "800", textTransform: "uppercase" }}>
+                  MACK • ROJO RUBÍ METALIZADO
+                </span>
+                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>
+                  Mack Vision Elite
+                </h3>
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
                   Tuberías de escape gemelas pulidas, rines con spikes en punta y bomper americano de diseño envolvente.
                 </p>
-                <Link to="/galeria/Mack-Vision-Placa-SZZ514" className="primary-btn" style={{ display: "block", textAlign: "center", marginTop: "1rem", fontSize: "0.85rem", background: "linear-gradient(135deg, #fb923c, #ea580c)", color: "#000" }}>
+                <Link
+                  to="/galeria/Mack-Vision-Placa-SZZ514"
+                  className="primary-btn"
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginTop: "1rem",
+                    fontSize: "0.85rem",
+                    background: "linear-gradient(135deg, #fb923c, #ea580c)",
+                    color: "#000",
+                  }}
+                >
                   ⚡ Ver Showroom 4K
                 </Link>
               </div>
             </div>
 
             {/* Peterbilt 389 */}
-            <div style={{ overflow: "hidden", borderRadius: "16px", border: "1px solid rgba(52, 211, 153, 0.25)", background: "#14161c", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+            <div
+              style={{
+                overflow: "hidden",
+                borderRadius: "16px",
+                border: "1px solid rgba(52, 211, 153, 0.25)",
+                background: "#14161c",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+              }}
+            >
               <div style={{ position: "relative", height: "200px" }}>
-                <img src="/images/showroom/peterbilt_truck_custom.jpg" alt="Peterbilt 389" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                <div style={{ position: "absolute", top: "12px", left: "12px", background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)", color: "#000", fontWeight: "900", fontSize: "0.85rem", letterSpacing: "0.14em", padding: "0.2rem 0.6rem", borderRadius: "4px", border: "1.5px solid #000" }}>
+                <img
+                  src="/images/showroom/peterbilt_truck_custom.jpg"
+                  alt="Peterbilt 389"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "12px",
+                    left: "12px",
+                    background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                    color: "#000",
+                    fontWeight: "900",
+                    fontSize: "0.85rem",
+                    letterSpacing: "0.14em",
+                    padding: "0.2rem 0.6rem",
+                    borderRadius: "4px",
+                    border: "1.5px solid #000",
+                  }}
+                >
                   UFT-621
                 </div>
               </div>
               <div style={{ padding: "1.4rem" }}>
-                <span style={{ fontSize: "0.75rem", color: "#34d399", fontWeight: "800", textTransform: "uppercase" }}>PETERBILT • VERDE ESMERALDA</span>
-                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>Peterbilt 389 Pride & Class</h3>
+                <span style={{ fontSize: "0.75rem", color: "#34d399", fontWeight: "800", textTransform: "uppercase" }}>
+                  PETERBILT • VERDE ESMERALDA
+                </span>
+                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>
+                  Peterbilt 389 Pride & Class
+                </h3>
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
                   Pintura poliuretano de alta resistencia, rines Alcoa pulidos espejo y visera americana en acero inoxidable.
                 </p>
-                <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="primary-btn" style={{ display: "block", textAlign: "center", marginTop: "1rem", fontSize: "0.85rem", background: "linear-gradient(135deg, #10b981, #059669)", color: "#000" }}>
+                <Link
+                  to="/galeria/Kenworth-T800-Placa-WTL892"
+                  className="primary-btn"
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginTop: "1rem",
+                    fontSize: "0.85rem",
+                    background: "linear-gradient(135deg, #10b981, #059669)",
+                    color: "#000",
+                  }}
+                >
                   ⚡ Ver Showroom 4K
                 </Link>
               </div>
@@ -425,7 +675,7 @@ export default function PublicHome() {
                   )}
                   <p>{prod.description}</p>
                   <a
-                    href={`https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20estoy%20interesado%20en%20el%20producto:%20${encodeURIComponent(
+                    href={`https://wa.me/${cleanWaNumber}?text=Hola%20Mellos%20Truck,%20estoy%20interesado%20en%20el%20producto:%20${encodeURIComponent(
                       prod.title
                     )}${prod.price ? `%20(Precio:%20$${parseFloat(prod.price).toLocaleString("es-CO")}%20COP)` : ""}`}
                     target="_blank"
@@ -599,17 +849,21 @@ export default function PublicHome() {
             <p>
               El taller líder en fabricación de bompers de acero inoxidable, viseras americanas y personalización estética para tractomulas y vehículos de carga pesada.
             </p>
-            <p className="footer-ig">
-              Síguenos en Instagram:{" "}
-              <a href="https://www.instagram.com/mellos_trucks/" target="_blank" rel="noreferrer">
-                @mellos_trucks
-              </a>
-            </p>
+            {config.instagramUser && (
+              <p className="footer-ig">
+                Síguenos en Instagram:{" "}
+                <a href={config.instagramUrl || "https://www.instagram.com/mellos_trucks/"} target="_blank" rel="noreferrer">
+                  {config.instagramUser}
+                </a>
+              </p>
+            )}
           </div>
 
           <div>
             <h4>Showroom & Taller</h4>
-            <Link to="/galeria/Kenworth-T800-Placa-WTL892">Proyecto Kenworth T800</Link>
+            <Link to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}>
+              Proyecto Destacado
+            </Link>
             <a href="#transformacion">Slider Antes y Después</a>
             <a href="#catalogo">Tienda Container</a>
             <a href="#servicios">Servicios de Acero</a>
@@ -618,13 +872,15 @@ export default function PublicHome() {
           <div>
             <h4>Atención & Contacto</h4>
             <a
-              href="https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20quiero%20m%C3%A1s%20informaci%C3%B3n"
+              href={`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(
+                config.whatsappDefaultMsg || "Hola Mellos Truck, quiero más información de servicios"
+              )}`}
               target="_blank"
               rel="noreferrer"
             >
               💬 WhatsApp Ventas Directas
             </a>
-            <p className="footer-location">📍 Medellín, Colombia</p>
+            <p className="footer-location">📍 {config.locationText || "Medellín & Bogotá, Colombia"}</p>
             <Link to="/admin/login" className="footer-admin-link">
               🔐 Acceso Administrativo
             </Link>
@@ -632,19 +888,21 @@ export default function PublicHome() {
         </div>
 
         <div className="footer-bottom-bar">
-          <p>© {new Date().getFullYear()} Mellos Truck. Todos los derechos reservados.</p>
+          <p>© {new Date().getFullYear()} Mellos Truck S.A.S. Todos los derechos reservados.</p>
         </div>
       </footer>
 
-      {/* Botón Flotante de WhatsApp */}
+      {/* 9. Botón Flotante de WhatsApp */}
       <a
         className="floating-whatsapp"
-        href="https://wa.me/573000000000?text=Hola%20Mellos%20Truck,%20quiero%20cotizar%20mi%20cami%C3%B3n"
+        href={`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(
+          "¡Hola Mellos Truck! 🚛 Quiero cotizar la personalización de mi camión."
+        )}`}
         target="_blank"
         rel="noreferrer"
         aria-label="Contactar por WhatsApp"
       >
-        <span>💬</span>
+        <span style={{ fontSize: "1.25rem" }}>💬</span>
         <span className="wa-text">Cotizar en WhatsApp</span>
       </a>
     </div>

@@ -12,6 +12,7 @@ import ShowroomPage from "./pages/ShowroomPage.jsx";
 import MagicLinksStudioPage from "./pages/MagicLinksStudioPage.jsx";
 import InventoryPage from "./pages/InventoryPage.jsx";
 import WorkshopPage from "./pages/WorkshopPage.jsx";
+import LandingEditorPage from "./pages/LandingEditorPage.jsx";
 
 function App() {
   return (
@@ -33,6 +34,8 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="workshop" element={<WorkshopPage />} />
           <Route path="orders" element={<WorkshopPage />} />
+          <Route path="landing" element={<LandingEditorPage />} />
+          <Route path="settings" element={<LandingEditorPage />} />
           <Route path="studio" element={<MagicLinksStudioPage />} />
           <Route path="magic-links" element={<MagicLinksStudioPage />} />
           <Route path="inventory" element={<InventoryPage />} />

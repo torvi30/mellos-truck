@@ -12,6 +12,7 @@ import showroomRoutes from "./routes/showroomRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import workOrderRoutes from "./routes/workOrderRoutes.js";
 import telegramRoutes from "./routes/telegramRoutes.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,5 +39,6 @@ app.use("/api/showroom", showroomRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/work-orders", workOrderRoutes);
 app.use("/api/telegram", telegramRoutes);
+app.use("/api/settings", settingsRoutes);
 
 export default app;

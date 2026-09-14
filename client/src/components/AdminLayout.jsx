@@ -321,6 +321,31 @@ export default function AdminLayout() {
             </div>
           </NavLink>
 
+          {/* 6. Personalizar Web */}
+          <NavLink
+            to="/admin/landing"
+            className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "11px 14px",
+              borderRadius: "10px",
+              textDecoration: "none",
+              background: isActive ? "rgba(236, 72, 153, 0.15)" : "#18181b",
+              border: isActive ? "1px solid #ec4899" : "1px solid rgba(255, 255, 255, 0.05)",
+              color: isActive ? "#f472b6" : "#e2e8f0",
+              fontWeight: isActive ? "800" : "600",
+              transition: "all 0.2s ease",
+            })}
+          >
+            <span style={{ fontSize: "1.2rem" }}>🎨</span>
+            <div>
+              <div style={{ fontSize: "0.9rem" }}>Personalizar Web</div>
+              <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Hero, WhatsApp & portadas</div>
+            </div>
+          </NavLink>
+
           {/* Separador */}
           <div style={{ height: "1px", background: "rgba(255, 255, 255, 0.08)", margin: "10px 4px" }}></div>
 
