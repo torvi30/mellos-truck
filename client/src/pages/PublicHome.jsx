@@ -123,12 +123,9 @@ export default function PublicHome() {
           </Link>
 
           <nav className="public-nav">
-            <a href="#inicio">Inicio</a>
-            <a href="#transformacion">Antes y Después</a>
-            <a href="#showroom">Showroom</a>
-            <a href="#servicios">Servicios</a>
+            <a href="#transformacion">Showroom & Transformaciones</a>
             <a href="#catalogo">Tienda Container</a>
-            <a href="#cotizar">Cotizar</a>
+            <a href="#cotizar">Cotizar Mula</a>
           </nav>
 
           <div className="header-cta-group">
