@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { memoryWorkOrders } from "./workOrderController.js";
+import { notifyNewQuote } from "../services/telegramService.js";
 
 // Almacén en memoria de cotizaciones para modo resiliente (V3 Rules)
 let memoryQuotes = [
@@ -129,6 +130,16 @@ export const createQuote = async (req, res) => {
     } catch (dbErr) {
       console.warn("⚠️ MySQL en modo fallback en createQuote:", dbErr.message);
     }
+
+    // Notificación automática a Telegram (V3 Rules)
+    notifyNewQuote({
+      nombre: client_name,
+      telefono: phone,
+      marca: vehicle_type,
+      placa: newQuote.plate,
+      servicio: service,
+      mensaje: details,
+    }).catch((err) => console.warn("Error enviando alerta Telegram de cotización:", err.message));
 
     res.status(201).json({
       success: true,

@@ -7,6 +7,7 @@ import {
   restoreProductStock,
 } from "./productController.js";
 import { memoryShowroomProjects } from "./showroom.controller.js";
+import { notifyTruckStage, notifyCriticalStock } from "../services/telegramService.js";
 
 const sanitizeSlug = (text) => {
   return text
@@ -208,9 +209,16 @@ const recalculateTotals = (order) => {
  */
 export const getWorkOrders = async (req, res) => {
   try {
-    const { estado, search } = req.query;
+    const { estado, search, include_archived, only_archived } = req.query;
 
     let orders = [...memoryWorkOrders];
+
+    // Filtro de Archivo: Por defecto se muestran mulas activas en el patio
+    if (only_archived === "true") {
+      orders = orders.filter((o) => o.archivado === true);
+    } else if (include_archived !== "true") {
+      orders = orders.filter((o) => o.archivado !== true);
+    }
 
     // Intentar leer de MySQL si existe
     try {
@@ -402,6 +410,11 @@ export const updateWorkOrderStatus = async (req, res) => {
         )}`
       : null;
 
+    // Notificación automática a Telegram Bot (V3 Rules)
+    notifyTruckStage(order, estado).catch((err) =>
+      console.warn("Error enviando alerta Telegram de fase:", err.message)
+    );
+
     res.json({
       success: true,
       message: `Estado de la mula ${order.placa} actualizado de [${previousState}] a [${estado}]`,
@@ -471,6 +484,13 @@ export const assignWorkOrderItem = async (req, res) => {
     }
 
     recalculateTotals(order);
+
+    // Alerta automática a Telegram si el stock del producto cayó a o por debajo de crítico
+    if (product.stock <= product.min_stock_alert) {
+      notifyCriticalStock(product).catch((err) =>
+        console.warn("Error enviando alerta Telegram de stock crítico:", err.message)
+      );
+    }
 
     res.json({
       success: true,
@@ -590,6 +610,35 @@ export const updateWorkOrder = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar orden", error: error.message });
+  }
+};
+
+/**
+ * 8. Archivar o reactivar orden de trabajo (Historial)
+ * PATCH /api/work-orders/:id/archive
+ */
+export const toggleArchiveWorkOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { archivado } = req.body;
+
+    const order = memoryWorkOrders.find((o) => o.id === parseInt(id, 10));
+    if (!order) {
+      return res.status(404).json({ message: "Orden no encontrada" });
+    }
+
+    order.archivado = archivado !== undefined ? Boolean(archivado) : !order.archivado;
+    order.fecha_archivado = order.archivado ? new Date().toISOString() : null;
+
+    res.json({
+      success: true,
+      message: order.archivado
+        ? `Mula ${order.placa} trasladada al Archivo Histórico`
+        : `Mula ${order.placa} devuelta al Tablero Activo`,
+      order,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error al archivar orden", error: error.message });
   }
 };
 
