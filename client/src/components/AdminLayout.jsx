@@ -20,6 +20,7 @@ function AdminLayout() {
 
         <nav className="admin-nav">
           <Link to="/admin">Dashboard</Link>
+          <Link to="/admin/workshop" style={{ color: "#f59e0b", fontWeight: "800" }}>🛠️ Taller & Trazabilidad</Link>
           <Link to="/admin/studio" style={{ color: "#fbbf24", fontWeight: "700" }}>⚡ Showroom & Magic Links</Link>
           <Link to="/admin/inventory" style={{ color: "#38bdf8", fontWeight: "700" }}>📦 Inventario Container</Link>
           <Link to="/admin/quotes">Cotizaciones</Link>

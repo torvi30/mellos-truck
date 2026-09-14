@@ -194,3 +194,36 @@ export const updateStock = async (req, res) => {
     res.status(500).json({ message: "Error al actualizar stock", error: error.message });
   }
 };
+
+// Exportar almacén en memoria para sincronización entre módulos
+export { memoryProducts };
+
+export const getProductById = (id) => {
+  return memoryProducts.find((p) => p.id === parseInt(id, 10));
+};
+
+export const deductProductStock = async (id, qty = 1) => {
+  const prod = memoryProducts.find((p) => p.id === parseInt(id, 10));
+  if (prod) {
+    prod.stock = Math.max(0, prod.stock - qty);
+  }
+  try {
+    await pool.query("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE id = ?", [qty, id]);
+  } catch (err) {
+    // Modo offline resiliente
+  }
+  return prod;
+};
+
+export const restoreProductStock = async (id, qty = 1) => {
+  const prod = memoryProducts.find((p) => p.id === parseInt(id, 10));
+  if (prod) {
+    prod.stock = prod.stock + qty;
+  }
+  try {
+    await pool.query("UPDATE products SET stock = stock + ? WHERE id = ?", [qty, id]);
+  } catch (err) {
+    // Modo offline resiliente
+  }
+  return prod;
+};

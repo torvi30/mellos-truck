@@ -300,3 +300,5 @@ export const getShowroomBySlug = async (req, res) => {
     return res.status(500).json({ message: "Error al cargar el Showroom", error: error.message });
   }
 };
+
+export { memoryShowroomProjects };

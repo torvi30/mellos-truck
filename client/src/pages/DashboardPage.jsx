@@ -16,6 +16,9 @@ export default function DashboardPage() {
   useEffect(() => {
     // Cargar métricas en tiempo real
     Promise.all([
+      fetch("http://localhost:4000/api/work-orders")
+        .then((r) => r.json())
+        .catch(() => ({ count: 5 })),
       fetch("http://localhost:4000/api/showroom")
         .then((r) => r.json())
         .catch(() => ({ count: 2 })),
@@ -25,8 +28,9 @@ export default function DashboardPage() {
       fetch("http://localhost:4000/api/products")
         .then((r) => r.json())
         .catch(() => ({ lowStockCount: 2 })),
-    ]).then(([showroomData, quotesData, productsData]) => {
+    ]).then(([ordersData, showroomData, quotesData, productsData]) => {
       setStats({
+        ordersCount: ordersData?.count || 5,
         showroomsCount: showroomData?.count || 2,
         quotesCount: Array.isArray(quotesData) ? quotesData.length : 3,
         lowStockCount: productsData?.lowStockCount || 2,
@@ -43,13 +47,23 @@ export default function DashboardPage() {
           <h1>Panel de Control & Taller Mellos Truck</h1>
           <p>Bienvenido, <strong>{adminName}</strong>. Estado operativo en tiempo real.</p>
         </div>
-        <Link to="/admin/studio" className="primary-btn pulse-btn">
-          ⚡ + Emitir Magic Link
-        </Link>
+        <div style={{ display: "flex", gap: "0.8rem" }}>
+          <Link to="/admin/workshop" className="primary-btn" style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#000" }}>
+            🛠️ Tablero Taller
+          </Link>
+          <Link to="/admin/studio" className="primary-btn pulse-btn">
+            ⚡ + Emitir Magic Link
+          </Link>
+        </div>
       </div>
 
       {/* Grid de Métricas Principales */}
       <div className="studio-stats-row">
+        <Link to="/admin/workshop" className="studio-stat-card" style={{ textDecoration: "none", borderColor: "rgba(245, 158, 11, 0.4)" }}>
+          <span className="stat-num" style={{ color: "#f59e0b" }}>{stats.ordersCount || 5}</span>
+          <span className="stat-label">Mulas en Taller (Kanban)</span>
+        </Link>
+
         <Link to="/admin/studio" className="studio-stat-card" style={{ textDecoration: "none" }}>
           <span className="stat-num">{stats.showroomsCount}</span>
           <span className="stat-label">Showrooms Emitidos (Magic Links)</span>
@@ -66,17 +80,25 @@ export default function DashboardPage() {
           </span>
           <span className="stat-label">Alertas de Stock Container</span>
         </Link>
-
-        <div className="studio-stat-card">
-          <span className="stat-num" style={{ color: "#4ade80" }}>100%</span>
-          <span className="stat-label">Streaming 206 Online</span>
-        </div>
       </div>
 
       {/* Acciones Rápidas del Negocio */}
       <div className="studio-card-wrapper" style={{ marginBottom: "28px" }}>
         <h2>Módulos Principales de Gestión</h2>
         <div className="studio-projects-grid">
+          <div className="studio-project-item" style={{ borderTop: "4px solid #f59e0b" }}>
+            <div className="item-details">
+              <span className="subheading-neon" style={{ color: "#f59e0b" }}>OPERACIONES & TRAZABILIDAD</span>
+              <h3>Taller Central & Mulas</h3>
+              <p className="item-desc">
+                Tablero Kanban industrial: seguimiento de mulas en Ingreso, Pailería, Pintura y Terminado con descuento automático de piezas desde el Container.
+              </p>
+              <Link to="/admin/workshop" className="btn-view-project" style={{ textAlign: "center", borderColor: "rgba(245, 158, 11, 0.5)", color: "#f59e0b" }}>
+                🛠️ Abrir Tablero de Taller
+              </Link>
+            </div>
+          </div>
+
           <div className="studio-project-item">
             <div className="item-details">
               <span className="subheading-neon">MODALIDAD COMERCIAL</span>
@@ -99,19 +121,6 @@ export default function DashboardPage() {
               </p>
               <Link to="/admin/inventory" className="btn-view-project" style={{ textAlign: "center", borderColor: "rgba(56, 189, 248, 0.4)", color: "#38bdf8" }}>
                 📦 Abrir Inventario Container
-              </Link>
-            </div>
-          </div>
-
-          <div className="studio-project-item">
-            <div className="item-details">
-              <span className="subheading-neon" style={{ color: "#4ade80" }}>VENTAS & PROSPECTOS</span>
-              <h3>Cotizaciones de la Web</h3>
-              <p className="item-desc">
-                Revisa los mensajes enviados por clientes desde la landing page y contáctalos de inmediato por WhatsApp para cerrar la venta.
-              </p>
-              <Link to="/admin/quotes" className="btn-view-project" style={{ textAlign: "center", borderColor: "rgba(74, 222, 128, 0.4)", color: "#4ade80" }}>
-                💬 Gestionar Cotizaciones
               </Link>
             </div>
           </div>
