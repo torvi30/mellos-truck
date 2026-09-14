@@ -131,6 +131,7 @@ const DEFAULT_CONFIG = {
 export default function PublicHome() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -297,9 +298,7 @@ export default function PublicHome() {
                 href={
                   config.announcementBar.link?.startsWith("#")
                     ? config.announcementBar.link
-                    : `https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(
-                        "Hola Mellos Truck, me interesa el anuncio: " + config.announcementBar.message
-                      )}`
+                    : "#cotizar"
                 }
                 className="announcement-btn"
               >
@@ -318,45 +317,124 @@ export default function PublicHome() {
         </aside>
       )}
 
-      {/* 1. Header Pro */}
+      {/* 1. Header Ultra-Pro Mellos Truck (Sin WhatsApp saturado, solo CTAs de alto impacto) */}
       <header className="public-header">
         <div className="public-container header-inner">
-          <Link to="/" className="brand-box">
-            <div className="brand-logo">MT</div>
-            <div>
-              <h2>MELLOS TRUCK</h2>
-              <p>Taller de Modificaciones & Tienda Container</p>
+          {/* Logo e Identidad de Marca Pro */}
+          <Link to="/" className="brand-box-pro">
+            <div className="brand-logo-pro">
+              <span className="logo-initials">MT</span>
+              <span className="logo-halo"></span>
+            </div>
+            <div className="brand-text-block">
+              <h2 className="brand-heading">
+                MELLOS <span className="brand-accent">TRUCK</span>
+              </h2>
+              <div className="brand-sub-badge">
+                <span className="live-status-dot"></span>
+                <span>TALLER PESADOS & CONTAINER 4K</span>
+              </div>
             </div>
           </Link>
 
-          <nav className="public-nav">
-            <a href="#transformacion">Showroom & Transformaciones</a>
-            <a href="#catalogo">Tienda Container</a>
-            <a href="#servicios">Servicios</a>
-            <a href="#cotizar">Cotizar Mula</a>
+          {/* Navegación Desktop con Isla Glassmorphic */}
+          <nav className="public-nav-island" aria-label="Navegación principal">
+            <a href="#transformacion" className="nav-pill-link">
+              <span className="nav-pill-icon">🎬</span>
+              <span>Transformaciones</span>
+            </a>
+            <a href="#catalogo" className="nav-pill-link">
+              <span className="nav-pill-icon">📦</span>
+              <span>Tienda Container</span>
+            </a>
+            <a href="#servicios" className="nav-pill-link">
+              <span className="nav-pill-icon">🛠️</span>
+              <span>Servicios</span>
+            </a>
+            <a href="#cotizar" className="nav-pill-link">
+              <span className="nav-pill-icon">⚡</span>
+              <span>Cotizador</span>
+            </a>
           </nav>
 
+          {/* Grupo de Acciones Ultra-Pro (WhatsApp exclusivo en botón flotante inferior) */}
           <div className="header-cta-group">
             <Link
               to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}
-              className="btn-header-magic"
+              className="btn-header-showroom"
+              title="Explorar el Showroom 4K interactivo"
+            >
+              <span>🎬</span>
+              <span>Showroom 4K</span>
+            </Link>
+
+            <a
+              href="#cotizar"
+              className="btn-header-quote-pro pulse-btn"
+              title="Cotizar mi vehículo ahora"
             >
               <span>⚡</span>
-              <span>Ver Showroom 4K</span>
-            </Link>
-            <a
-              className="btn-header-wa"
-              href={`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(
-                config.whatsappDefaultMsg || "Hola Mellos Truck, quiero cotizar accesorios para mi camión"
-              )}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span>💬</span>
-              <span>WhatsApp</span>
+              <span>Cotizar Mi Mula</span>
             </a>
+
+            {/* Botón Hamburguesa Móvil */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="mobile-nav-toggle-btn"
+              aria-label="Abrir menú de navegación"
+            >
+              {mobileMenuOpen ? "✕" : "☰"}
+            </button>
           </div>
         </div>
+
+        {/* Menú Desplegable Móvil */}
+        {mobileMenuOpen && (
+          <div className="mobile-nav-drawer">
+            <nav className="mobile-nav-links">
+              <a
+                href="#transformacion"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mobile-nav-link"
+              >
+                <span>🎬</span>
+                <span>Showroom & Transformaciones</span>
+              </a>
+              <a
+                href="#catalogo"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mobile-nav-link"
+              >
+                <span>📦</span>
+                <span>Tienda Container & Catálogo</span>
+              </a>
+              <a
+                href="#servicios"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mobile-nav-link"
+              >
+                <span>🛠️</span>
+                <span>Servicios de Taller</span>
+              </a>
+              <a
+                href="#cotizar"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mobile-nav-link"
+              >
+                <span>⚡</span>
+                <span>Cotizar Proyecto</span>
+              </a>
+              <Link
+                to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}
+                onClick={() => setMobileMenuOpen(false)}
+                className="mobile-nav-link highlight"
+              >
+                <span>🎬</span>
+                <span>Ver Showroom 4K Completo</span>
+              </Link>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* 2. Hero Principal Cinematográfico */}
