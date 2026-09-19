@@ -1,480 +1,251 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, Outlet, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import {
+  LayoutDashboard,
+  Wrench,
+  FileText,
+  Package,
+  Users,
+  Truck,
+  Image,
+  Sparkles,
+  Sliders,
+  ExternalLink,
+  LogOut,
+  Menu,
+  X,
+  Shield,
+  Hammer,
+} from "lucide-react";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const { logout, user, role, switchRole, isWorkshop } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate("/admin/login");
   };
 
+  const navItems = [
+    { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
+    { to: "/admin/workshop", label: "Taller & Patio", icon: Wrench },
+    { to: "/admin/quotes", label: "Cotizaciones", icon: FileText },
+    { to: "/admin/inventory", label: "Inventario Container", icon: Package },
+    { to: "/admin/clients", label: "Clientes", icon: Users },
+    { to: "/admin/vehicles", label: "Flota de Mulas", icon: Truck },
+    { to: "/admin/gallery", label: "Galería Multimedia", icon: Image },
+    { to: "/admin/studio", label: "Magic Links Studio", icon: Sparkles },
+    { to: "/admin/landing", label: "Editor Portada CMS", icon: Sliders },
+  ];
+
   return (
-    <div className="admin-shell">
-      {/* 1. Header Móvil (< 900px) */}
-      <header className="admin-mobile-topbar">
-        <Link to="/admin" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "8px" }}>
+    <div className="min-h-screen bg-carbon-950 text-slate-100 flex flex-col md:flex-row">
+      {/* 1. Header Móvil (< 768px) */}
+      <header className="md:hidden sticky top-0 z-50 bg-carbon-900/95 backdrop-blur-md border-b border-white/10 px-4 py-3 flex items-center justify-between">
+        <Link to="/admin" className="flex items-center gap-2.5">
           <div
-            style={{
-              width: "32px",
-              height: "32px",
-              background: isWorkshop
-                ? "linear-gradient(135deg, #f97316, #ea580c)"
-                : "linear-gradient(135deg, #f59e0b, #ef4444)",
-              borderRadius: "6px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#000",
-              fontWeight: "900",
-              fontSize: "0.95rem",
-            }}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-carbon-950 text-sm shadow-md ${
+              isWorkshop
+                ? "bg-gradient-to-br from-orange-500 to-amber-500"
+                : "bg-gradient-to-br from-amber-400 to-amber-600"
+            }`}
           >
             MT
           </div>
           <div>
-            <div style={{ fontSize: "0.92rem", fontWeight: "900", color: "#f8fafc" }}>MELLOS TRUCK</div>
-            <div style={{ fontSize: "0.65rem", color: isWorkshop ? "#f97316" : "#f59e0b", fontWeight: "700" }}>
-              {isWorkshop ? "🛠️ MODO PATIO" : "👔 GERENCIA"}
+            <div className="font-extrabold text-sm tracking-wider text-white">
+              MELLOS <span className="text-amber-400">TRUCK</span>
+            </div>
+            <div className="text-[10px] font-bold text-amber-500 tracking-wide uppercase">
+              {isWorkshop ? "🛠️ Modo Patio" : "👔 Gerencia Pro"}
             </div>
           </div>
         </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          {/* Quick role toggle móvil */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => switchRole(isWorkshop ? "admin" : "workshop")}
-            style={{
-              padding: "4px 8px",
-              borderRadius: "6px",
-              background: isWorkshop ? "rgba(249,115,22,0.15)" : "rgba(245,158,11,0.15)",
-              border: isWorkshop ? "1px solid #f97316" : "1px solid #f59e0b",
-              color: isWorkshop ? "#f97316" : "#f59e0b",
-              fontSize: "0.7rem",
-              fontWeight: "800",
-              cursor: "pointer",
-            }}
-            title="Alternar entre modo Gerencia y modo Taller"
+            className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center gap-1"
           >
-            {isWorkshop ? "🛠️ Patio" : "👔 Admin"}
+            {isWorkshop ? <Hammer className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+            <span>{isWorkshop ? "Patio" : "Gerencia"}</span>
           </button>
-
-          <Link
-            to="/"
-            target="_blank"
-            style={{
-              padding: "5px 8px",
-              borderRadius: "6px",
-              background: "rgba(255,255,255,0.08)",
-              color: "#cbd5e1",
-              fontSize: "0.72rem",
-              fontWeight: "700",
-              textDecoration: "none",
-            }}
-          >
-            🌐 Web
-          </Link>
           <button
-            onClick={handleLogout}
-            style={{
-              padding: "5px 8px",
-              borderRadius: "6px",
-              background: "rgba(239,68,68,0.15)",
-              border: "1px solid rgba(239,68,68,0.3)",
-              color: "#f87171",
-              fontSize: "0.72rem",
-              fontWeight: "700",
-              cursor: "pointer",
-            }}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-1.5 rounded-lg bg-carbon-800 text-slate-300 hover:text-white border border-white/5"
+            aria-label="Abrir menú"
           >
-            Salir
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </header>
 
-      {/* 2. Sidebar de Escritorio (> 900px) */}
-      <aside className="admin-sidebar">
-        <div className="admin-brand">
-          <Link to="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "10px" }}>
+      {/* 2. Menú desplegable Móvil */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 top-[57px] z-40 bg-carbon-950/95 backdrop-blur-lg p-4 flex flex-col justify-between overflow-y-auto">
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all ${
+                      isActive
+                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold"
+                        : "text-slate-400 hover:text-white hover:bg-carbon-900"
+                    }`
+                  }
+                >
+                  <Icon className="w-4 h-4 text-amber-400" />
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+
+          <div className="pt-6 border-t border-white/10 space-y-2">
+            <Link
+              to="/"
+              target="_blank"
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold bg-carbon-800 text-slate-300 border border-white/10 hover:bg-carbon-700"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+              <span>Ver Vitrina Pública</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Sidebar Fijo de Escritorio (>= 768px) */}
+      <aside className="hidden md:flex flex-col w-64 lg:w-72 bg-carbon-900 border-r border-white/10 shrink-0 h-screen sticky top-0 overflow-y-auto">
+        {/* Identidad de Marca */}
+        <div className="p-5 border-b border-white/10">
+          <Link to="/" className="flex items-center gap-3 group">
             <div
-              style={{
-                width: "38px",
-                height: "38px",
-                background: isWorkshop
-                  ? "linear-gradient(135deg, #f97316, #ea580c)"
-                  : "linear-gradient(135deg, #f59e0b, #ef4444)",
-                borderRadius: "8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#000",
-                fontWeight: "900",
-                fontSize: "1.1rem",
-              }}
+              className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-carbon-950 text-base shadow-lg transition-transform group-hover:scale-105 ${
+                isWorkshop
+                  ? "bg-gradient-to-br from-orange-500 to-amber-500 shadow-orange-500/20"
+                  : "bg-gradient-to-br from-amber-400 to-amber-600 shadow-amber-500/20"
+              }`}
             >
               MT
             </div>
             <div>
-              <h2 style={{ fontSize: "1.1rem", margin: 0, color: "#f8fafc", letterSpacing: "0.05em" }}>
-                MELLOS TRUCK
+              <h2 className="font-extrabold text-base tracking-wider text-white">
+                MELLOS <span className="text-amber-400">TRUCK</span>
               </h2>
-              <p style={{ margin: 0, fontSize: "0.75rem", color: isWorkshop ? "#f97316" : "#f59e0b", fontWeight: "700" }}>
+              <p className="text-[10px] font-bold text-amber-500 tracking-wider uppercase">
                 TALLER & CONTAINER
               </p>
             </div>
           </Link>
         </div>
 
-        {/* Switch Selector de Rol Operativo */}
-        <div style={{ padding: "0 4px 14px 4px" }}>
-          <div
-            style={{
-              background: "#18181b",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: "10px",
-              padding: "4px",
-              display: "flex",
-              gap: "4px",
-            }}
-          >
+        {/* Selector de Rol Operativo */}
+        <div className="px-4 pt-4 pb-2">
+          <div className="bg-carbon-950 p-1 rounded-xl border border-white/10 flex gap-1">
             <button
               onClick={() => switchRole("admin")}
-              style={{
-                flex: 1,
-                padding: "7px 6px",
-                borderRadius: "7px",
-                border: "none",
-                fontSize: "0.75rem",
-                fontWeight: "800",
-                cursor: "pointer",
-                background: !isWorkshop ? "linear-gradient(135deg, #f59e0b, #d97706)" : "transparent",
-                color: !isWorkshop ? "#000" : "#94a3b8",
-                transition: "all 0.2s ease",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "4px",
-              }}
-              title="Vista Ejecutiva: Margen de ganancias, facturación completa y administración"
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                !isWorkshop
+                  ? "bg-amber-500 text-carbon-950 shadow-md shadow-amber-500/20"
+                  : "text-slate-400 hover:text-white"
+              }`}
             >
-              <span>👔</span> Gerencia
+              <Shield className="w-3.5 h-3.5" />
+              <span>Gerencia</span>
             </button>
             <button
               onClick={() => switchRole("workshop")}
-              style={{
-                flex: 1,
-                padding: "7px 6px",
-                borderRadius: "7px",
-                border: "none",
-                fontSize: "0.75rem",
-                fontWeight: "800",
-                cursor: "pointer",
-                background: isWorkshop ? "linear-gradient(135deg, #f97316, #ea580c)" : "transparent",
-                color: isWorkshop ? "#000" : "#94a3b8",
-                transition: "all 0.2s ease",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "4px",
-              }}
-              title="Vista de Taller: Enfocada en operaciones mecánicas, fotos, repuestos y tiempos sin cifras financieras confidenciales"
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                isWorkshop
+                  ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
+                  : "text-slate-400 hover:text-white"
+              }`}
             >
-              <span>🛠️</span> Patio
+              <Hammer className="w-3.5 h-3.5" />
+              <span>Taller</span>
             </button>
-          </div>
-          <div style={{ fontSize: "0.68rem", color: isWorkshop ? "#f97316" : "#64748b", marginTop: "5px", textAlign: "center", fontWeight: "600" }}>
-            {isWorkshop ? "🔒 Modo Patio: Cifras financieras ocultas" : "🔓 Modo Gerencia: Acceso financiero total"}
           </div>
         </div>
 
-        {/* Los Módulos Estratégicos de Gestión */}
-        <nav className="admin-nav">
-          <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: "800", textTransform: "uppercase", padding: "0 8px 4px 8px", letterSpacing: "0.08em" }}>
-            MÓDULOS PRINCIPALES
-          </div>
-
-          {/* 1. Dashboard */}
-          <NavLink
-            to="/admin"
-            end
-            className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "11px 14px",
-              borderRadius: "10px",
-              textDecoration: "none",
-              background: isActive ? "rgba(245, 158, 11, 0.15)" : "#18181b",
-              border: isActive ? "1px solid #f59e0b" : "1px solid rgba(255, 255, 255, 0.05)",
-              color: isActive ? "#f59e0b" : "#e2e8f0",
-              fontWeight: isActive ? "800" : "600",
-              transition: "all 0.2s ease",
-            })}
-          >
-            <span style={{ fontSize: "1.2rem" }}>📊</span>
-            <div>
-              <div style={{ fontSize: "0.9rem" }}>Dashboard</div>
-              <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Métricas operativas</div>
-            </div>
-          </NavLink>
-
-          {/* 2. Taller & Mulas */}
-          <NavLink
-            to="/admin/workshop"
-            className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "11px 14px",
-              borderRadius: "10px",
-              textDecoration: "none",
-              background: isActive ? "rgba(249, 115, 22, 0.15)" : "#18181b",
-              border: isActive ? "1px solid #f97316" : "1px solid rgba(255, 255, 255, 0.05)",
-              color: isActive ? "#f97316" : "#e2e8f0",
-              fontWeight: isActive ? "800" : "600",
-              transition: "all 0.2s ease",
-            })}
-          >
-            <span style={{ fontSize: "1.2rem" }}>🛠️</span>
-            <div>
-              <div style={{ fontSize: "0.9rem" }}>Taller & Mulas</div>
-              <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Kanban, fotos 4K y patio</div>
-            </div>
-          </NavLink>
-
-          {/* 3. CRM Clientes & Flotas */}
-          <NavLink
-            to="/admin/clients"
-            className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "11px 14px",
-              borderRadius: "10px",
-              textDecoration: "none",
-              background: isActive ? "rgba(168, 85, 247, 0.15)" : "#18181b",
-              border: isActive ? "1px solid #a855f7" : "1px solid rgba(255, 255, 255, 0.05)",
-              color: isActive ? "#c084fc" : "#e2e8f0",
-              fontWeight: isActive ? "800" : "600",
-              transition: "all 0.2s ease",
-            })}
-          >
-            <span style={{ fontSize: "1.2rem" }}>👥</span>
-            <div>
-              <div style={{ fontSize: "0.9rem" }}>Clientes & Flotas</div>
-              <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Directorio y fidelización</div>
-            </div>
-          </NavLink>
-
-          {/* 4. Inventario Container */}
-          <NavLink
-            to="/admin/inventory"
-            className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "11px 14px",
-              borderRadius: "10px",
-              textDecoration: "none",
-              background: isActive ? "rgba(56, 189, 248, 0.15)" : "#18181b",
-              border: isActive ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.05)",
-              color: isActive ? "#38bdf8" : "#e2e8f0",
-              fontWeight: isActive ? "800" : "600",
-              transition: "all 0.2s ease",
-            })}
-          >
-            <span style={{ fontSize: "1.2rem" }}>📦</span>
-            <div>
-              <div style={{ fontSize: "0.9rem" }}>Inventario Container</div>
-              <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Repuestos & stock crítico</div>
-            </div>
-          </NavLink>
-
-          {/* 5. Showroom & Magic Links */}
-          <NavLink
-            to="/admin/studio"
-            className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "11px 14px",
-              borderRadius: "10px",
-              textDecoration: "none",
-              background: isActive ? "rgba(251, 191, 36, 0.15)" : "#18181b",
-              border: isActive ? "1px solid #fbbf24" : "1px solid rgba(255, 255, 255, 0.05)",
-              color: isActive ? "#fbbf24" : "#e2e8f0",
-              fontWeight: isActive ? "800" : "600",
-              transition: "all 0.2s ease",
-            })}
-          >
-            <span style={{ fontSize: "1.2rem" }}>⚡</span>
-            <div>
-              <div style={{ fontSize: "0.9rem" }}>Showroom & Magic Links</div>
-              <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Difusión por WhatsApp</div>
-            </div>
-          </NavLink>
-
-          {/* 6. Personalizar Web */}
-          <NavLink
-            to="/admin/landing"
-            className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "11px 14px",
-              borderRadius: "10px",
-              textDecoration: "none",
-              background: isActive ? "rgba(236, 72, 153, 0.15)" : "#18181b",
-              border: isActive ? "1px solid #ec4899" : "1px solid rgba(255, 255, 255, 0.05)",
-              color: isActive ? "#f472b6" : "#e2e8f0",
-              fontWeight: isActive ? "800" : "600",
-              transition: "all 0.2s ease",
-            })}
-          >
-            <span style={{ fontSize: "1.2rem" }}>🎨</span>
-            <div>
-              <div style={{ fontSize: "0.9rem" }}>Personalizar Web</div>
-              <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Hero, WhatsApp & portadas</div>
-            </div>
-          </NavLink>
-
-          {/* Separador */}
-          <div style={{ height: "1px", background: "rgba(255, 255, 255, 0.08)", margin: "10px 4px" }}></div>
-
-          <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: "800", textTransform: "uppercase", padding: "0 8px 4px 8px", letterSpacing: "0.08em" }}>
-            COMUNICACIÓN
-          </div>
-
-          {/* 6. Cotizaciones Web */}
-          <NavLink
-            to="/admin/quotes"
-            className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "10px 14px",
-              borderRadius: "8px",
-              textDecoration: "none",
-              background: isActive ? "rgba(74, 222, 128, 0.15)" : "transparent",
-              border: isActive ? "1px solid #4ade80" : "1px solid transparent",
-              color: isActive ? "#4ade80" : "#94a3b8",
-              fontWeight: isActive ? "800" : "500",
-              fontSize: "0.85rem",
-              transition: "all 0.2s ease",
-            })}
-          >
-            <span style={{ fontSize: "1.1rem" }}>💬</span>
-            <span>Cotizaciones Web</span>
-          </NavLink>
+        {/* Enlaces de Navegación */}
+        <nav className="flex-1 px-3 py-3 space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    isActive
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold shadow-sm"
+                      : "text-slate-400 hover:text-slate-100 hover:bg-carbon-800/60"
+                  }`
+                }
+              >
+                <Icon className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </NavLink>
+            );
+          })}
         </nav>
 
-        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
-          <Link
-            to="/"
-            target="_blank"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              padding: "10px",
-              borderRadius: "8px",
-              background: "rgba(255, 255, 255, 0.05)",
-              color: "#cbd5e1",
-              textDecoration: "none",
-              fontSize: "0.8rem",
-              fontWeight: "600",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-          >
-            🌐 Ver Sitio Público
-          </Link>
+        {/* Footer del Sidebar con Usuario y Acciones */}
+        <div className="p-4 border-t border-white/10 space-y-2.5">
+          <div className="px-2 py-1.5 rounded-lg bg-carbon-950 border border-white/5 flex items-center justify-between">
+            <div className="truncate">
+              <div className="text-[11px] font-medium text-slate-400 truncate">Sesión activa</div>
+              <div className="text-xs font-bold text-slate-200 truncate">
+                {user?.email || "admin@mellostrucks.com"}
+              </div>
+            </div>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+          </div>
 
-          <button className="logout-btn" onClick={handleLogout}>
-            Cerrar sesión
-          </button>
+          <div className="flex gap-2">
+            <Link
+              to="/"
+              target="_blank"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold bg-carbon-800 text-slate-300 border border-white/5 hover:bg-carbon-700 hover:text-white transition-colors"
+              title="Abrir vitrina pública en nueva pestaña"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+              <span>Ver Web</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-2 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* 3. Contenido Principal */}
-      <main className="admin-content">
-        {isWorkshop && (
-          <div
-            style={{
-              background: "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(0,0,0,0.4))",
-              border: "1px solid rgba(249, 115, 22, 0.3)",
-              borderRadius: "10px",
-              padding: "8px 14px",
-              marginBottom: "16px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "10px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "1.1rem" }}>🛠️</span>
-              <span style={{ fontSize: "0.8rem", color: "#fdba74", fontWeight: "700" }}>
-                Modo Patio & Mecánica Activo — Vista operativa limpia (Márgenes financieros confidenciales protegidos).
-              </span>
-            </div>
-            <button
-              onClick={() => switchRole("admin")}
-              style={{
-                background: "rgba(249, 115, 22, 0.2)",
-                border: "1px solid #f97316",
-                color: "#ffedd5",
-                borderRadius: "6px",
-                padding: "4px 10px",
-                fontSize: "0.72rem",
-                fontWeight: "700",
-                cursor: "pointer",
-              }}
-            >
-              Cambiar a Vista Gerencial 👔
-            </button>
-          </div>
-        )}
-        <Outlet />
+      {/* 4. Contenido Principal */}
+      <main className="flex-1 min-w-0 bg-carbon-950 overflow-y-auto">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+          <Outlet />
+        </div>
       </main>
-
-      {/* 4. Barra de Navegación Inferior Móvil (< 900px) */}
-      <nav className="admin-mobile-bottombar">
-        <NavLink to="/admin" end className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
-          <span style={{ fontSize: "1.2rem" }}>📊</span>
-          <span>Inicio</span>
-        </NavLink>
-        <NavLink to="/admin/workshop" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
-          <span style={{ fontSize: "1.2rem" }}>🛠️</span>
-          <span>Taller</span>
-        </NavLink>
-        <NavLink to="/admin/clients" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
-          <span style={{ fontSize: "1.2rem" }}>👥</span>
-          <span>Clientes</span>
-        </NavLink>
-        <NavLink to="/admin/inventory" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
-          <span style={{ fontSize: "1.2rem" }}>📦</span>
-          <span>Container</span>
-        </NavLink>
-        <NavLink to="/admin/studio" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
-          <span style={{ fontSize: "1.2rem" }}>⚡</span>
-          <span>Showroom</span>
-        </NavLink>
-        <NavLink to="/admin/quotes" className={({ isActive }) => `admin-mobile-nav-item ${isActive ? "active" : ""}`}>
-          <span style={{ fontSize: "1.2rem" }}>💬</span>
-          <span>Cotizar</span>
-        </NavLink>
-      </nav>
     </div>
   );
 }

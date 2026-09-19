@@ -6,16 +6,27 @@ import {
   createQuoteRequest,
   convertToWorkshopRequest,
 } from "../api/api";
+import { showSuccessToast, showErrorToast } from "../utils/alerts";
+import {
+  FileText,
+  Plus,
+  Search,
+  MessageCircle,
+  Wrench,
+  X,
+  CheckCircle2,
+  Clock,
+  Car,
+  MapPin,
+  Filter,
+} from "lucide-react";
 
 export default function QuotesPage() {
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Modal para confirmar envío a taller
   const [selectedQuoteForWorkshop, setSelectedQuoteForWorkshop] = useState(null);
   const [workshopLaborCost, setWorkshopLaborCost] = useState("2500000");
 
@@ -40,13 +51,13 @@ export default function QuotesPage() {
   ];
 
   const statusInfoMap = {
-    nueva: { label: "Nueva", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)", icon: "🟡" },
-    contactado: { label: "Contactado", color: "#38bdf8", bg: "rgba(56, 189, 248, 0.15)", icon: "💬" },
-    "en revision": { label: "En Revisión", color: "#818cf8", bg: "rgba(129, 140, 248, 0.15)", icon: "🔍" },
-    cotizada: { label: "Cotizada", color: "#c084fc", bg: "rgba(192, 132, 252, 0.15)", icon: "📋" },
-    aprobada: { label: "Aprobada", color: "#4ade80", bg: "rgba(74, 222, 128, 0.15)", icon: "✅" },
-    rechazada: { label: "Rechazada", color: "#f87171", bg: "rgba(248, 113, 113, 0.15)", icon: "❌" },
-    convertida: { label: "En Taller", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.25)", icon: "🛠️" },
+    nueva: { label: "Nueva", color: "text-amber-400", bg: "bg-amber-500/15 border-amber-500/30" },
+    contactado: { label: "Contactado", color: "text-cyan-400", bg: "bg-cyan-500/15 border-cyan-500/30" },
+    "en revision": { label: "En Revisión", color: "text-indigo-400", bg: "bg-indigo-500/15 border-indigo-500/30" },
+    cotizada: { label: "Cotizada", color: "text-purple-400", bg: "bg-purple-500/15 border-purple-500/30" },
+    aprobada: { label: "Aprobada", color: "text-emerald-400", bg: "bg-emerald-500/15 border-emerald-500/30" },
+    rechazada: { label: "Rechazada", color: "text-red-400", bg: "bg-red-500/15 border-red-500/30" },
+    convertida: { label: "En Taller", color: "text-orange-400", bg: "bg-orange-500/15 border-orange-500/30" },
   };
 
   const loadQuotes = async () => {
@@ -68,14 +79,11 @@ export default function QuotesPage() {
 
   const filteredQuotes = useMemo(() => {
     let result = [...quotes];
-
     if (statusFilter !== "todos") {
       result = result.filter((quote) => quote.status === statusFilter);
     }
-
     const term = search.trim().toLowerCase();
     if (!term) return result;
-
     return result.filter((quote) => {
       return (
         (quote.client_name || "").toLowerCase().includes(term) ||
@@ -93,27 +101,18 @@ export default function QuotesPage() {
     return {
       total: quotes.length,
       nuevas: quotes.filter((q) => q.status === "nueva").length,
-      negociacion: quotes.filter((q) => q.status === "contactado" || q.status === "cotizada" || q.status === "en revision").length,
+      negociacion: quotes.filter((q) => ["contactado", "cotizada", "en revision"].includes(q.status)).length,
       aprobadas: quotes.filter((q) => q.status === "aprobada").length,
       convertidas: quotes.filter((q) => q.status === "convertida").length,
     };
   }, [quotes]);
 
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
-
   const handleCreateQuote = async (e) => {
     e.preventDefault();
-    setMessage("");
-
     try {
       const data = await createQuoteRequest(form);
       if (data.quoteId) {
-        setMessage("✅ Cotización registrada con éxito");
+        showSuccessToast("¡Cotización registrada con éxito!");
         setShowCreateModal(false);
         setForm({
           client_name: "",
@@ -125,544 +124,247 @@ export default function QuotesPage() {
           details: "",
         });
         await loadQuotes();
-      } else {
-        setMessage(data.message || "No se pudo crear la cotización");
       }
     } catch (error) {
-      console.error("Error creando cotización:", error);
-      setMessage("Error al registrar cotización");
+      showErrorToast("Error al registrar cotización");
     }
   };
 
   const handleStatusChange = async (id, newStatus) => {
     try {
       await updateQuoteStatusRequest(id, newStatus);
+      showSuccessToast(`Estado cambiado a ${newStatus}`);
       await loadQuotes();
-    } catch (error) {
-      console.error("Error actualizando estado:", error);
+    } catch (err) {
+      showErrorToast("Error actualizando estado");
     }
   };
 
-  // Abrir WhatsApp con mensaje comercial pre-cargado
-  const handleContactWhatsApp = async (quote) => {
-    const text = encodeURIComponent(
-      `¡Hola ${quote.client_name}! 🚛🔥 Te saludamos desde Mellos Truck.\nRecibimos tu solicitud para tu camión ${quote.vehicle_type} (${quote.plate || "Sin placa"}).\nRespecto a: "${quote.service}".\n¿Cuándo te gustaría traer el carro al taller o programar la fabricación?`
-    );
-
-    const cleanPhone = (quote.phone || "").replace(/[^0-9]/g, "");
-    const waUrl = cleanPhone.startsWith("57")
-      ? `https://wa.me/${cleanPhone}?text=${text}`
-      : `https://wa.me/57${cleanPhone}?text=${text}`;
-
-    window.open(waUrl, "_blank");
-
-    if (quote.status === "nueva") {
-      await handleStatusChange(quote.id, "contactado");
-    }
-  };
-
-  // Confirmar y Enviar a Taller Kanban
-  const handleConfirmSendToWorkshop = async () => {
+  const handleConfirmWorkshop = async () => {
     if (!selectedQuoteForWorkshop) return;
-
     try {
-      const res = await convertToWorkshopRequest(
-        selectedQuoteForWorkshop.id,
-        parseFloat(workshopLaborCost) || 2000000
-      );
-
-      setMessage(`¡Mula ${selectedQuoteForWorkshop.plate || "ingresada"} enviada al Taller Kanban!`);
+      const laborCostNum = parseFloat(workshopLaborCost) || 2000000;
+      await convertToWorkshopRequest(selectedQuoteForWorkshop.id, laborCostNum);
+      showSuccessToast("¡Mula enviada al Tablero de Taller Kanban!");
       setSelectedQuoteForWorkshop(null);
       await loadQuotes();
     } catch (err) {
-      console.error("Error enviando a taller:", err);
-      setMessage("Error al enviar al taller");
+      showErrorToast("No se pudo transferir al taller");
     }
   };
 
   return (
-    <div style={{ color: "#f8fafc", padding: "1.5rem" }}>
-      {/* Toast Notification */}
-      {message && (
-        <div
-          style={{
-            position: "fixed",
-            top: "1.5rem",
-            right: "1.5rem",
-            zIndex: 9999,
-            padding: "1rem 1.5rem",
-            borderRadius: "10px",
-            background: "#059669",
-            color: "#ffffff",
-            fontWeight: "700",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
-            border: "1px solid rgba(255,255,255,0.2)",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.8rem",
-          }}
-        >
-          <span>✅</span>
-          <span>{message}</span>
-          <button
-            onClick={() => setMessage("")}
-            style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", marginLeft: "0.5rem" }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Header Industrial */}
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: "1.8rem",
-          flexWrap: "wrap",
-          gap: "1.2rem",
-          background: "linear-gradient(135deg, rgba(24, 24, 27, 0.9), rgba(9, 9, 11, 0.95))",
-          padding: "1.8rem 2rem",
-          borderRadius: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "0 12px 30px rgba(0,0,0,0.5)",
-        }}
-      >
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. Header de Cotizaciones */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", marginBottom: "0.4rem" }}>
-            <span style={{ fontSize: "1.8rem" }}>💬</span>
-            <h1
-              style={{
-                fontSize: "1.8rem",
-                fontWeight: "900",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                margin: 0,
-                background: "linear-gradient(90deg, #4ade80, #38bdf8)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Cotizaciones Web & Ventas
-            </h1>
-            <span
-              style={{
-                background: "rgba(74, 222, 128, 0.15)",
-                color: "#4ade80",
-                border: "1px solid rgba(74, 222, 128, 0.3)",
-                padding: "0.2rem 0.6rem",
-                borderRadius: "6px",
-                fontSize: "0.75rem",
-                fontWeight: "800",
-              }}
-            >
-              ENTRADA COMERCIAL
-            </span>
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">
+            <FileText className="w-4 h-4" />
+            <span>Gestión de Prospectos & Leads</span>
           </div>
-          <p style={{ color: "#94a3b8", margin: 0, fontSize: "0.95rem" }}>
-            Atiende a los camioneros interesados de la landing, contáctalos por WhatsApp y conviértelos en órdenes de trabajo para el taller con 1 clic.
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Cotizaciones & Presupuestos
+          </h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Solicitudes comerciales de transportadores con conversión directa al taller Kanban.
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "0.8rem", alignItems: "center" }}>
-          <Link
-            to="/admin/workshop"
-            style={{
-              padding: "0.75rem 1.2rem",
-              background: "rgba(245, 158, 11, 0.15)",
-              color: "#f59e0b",
-              border: "1px solid rgba(245, 158, 11, 0.3)",
-              borderRadius: "8px",
-              fontWeight: "800",
-              fontSize: "0.9rem",
-              textDecoration: "none",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
-          >
-            🛠️ Ver Tablero Kanban
-          </Link>
-
-          <button
-            onClick={() => setShowCreateModal(true)}
-            style={{
-              padding: "0.75rem 1.4rem",
-              background: "linear-gradient(135deg, #10b981, #059669)",
-              color: "#000",
-              border: "none",
-              borderRadius: "8px",
-              fontWeight: "800",
-              fontSize: "0.95rem",
-              cursor: "pointer",
-              boxShadow: "0 4px 15px rgba(16, 185, 129, 0.4)",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
-          >
-            <span>+</span> Nueva Cotización
-          </button>
-        </div>
-      </header>
-
-      {/* KPI Metrics */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "1rem",
-          marginBottom: "1.8rem",
-        }}
-      >
-        <div
-          style={{
-            background: "rgba(24, 24, 27, 0.8)",
-            padding: "1.2rem",
-            borderRadius: "12px",
-            border: "1px solid rgba(255, 255, 255, 0.06)",
-          }}
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all self-start sm:self-auto"
         >
-          <div style={{ fontSize: "0.8rem", color: "#94a3b8", textTransform: "uppercase" }}>Total Solicitudes</div>
-          <div style={{ fontSize: "1.8rem", fontWeight: "900", color: "#f8fafc", marginTop: "0.3rem" }}>
-            {counts.total} <span style={{ fontSize: "0.9rem", color: "#64748b" }}>cotizaciones</span>
-          </div>
-        </div>
+          <Plus className="w-4 h-4" />
+          <span>+ Nueva Cotización</span>
+        </button>
+      </div>
 
-        <div
-          style={{
-            background: "rgba(24, 24, 27, 0.8)",
-            padding: "1.2rem",
-            borderRadius: "12px",
-            border: "1px solid rgba(245, 158, 11, 0.25)",
-          }}
-        >
-          <div style={{ fontSize: "0.8rem", color: "#f59e0b", textTransform: "uppercase" }}>🟡 Nuevas por Atender</div>
-          <div style={{ fontSize: "1.8rem", fontWeight: "900", color: "#f59e0b", marginTop: "0.3rem" }}>
-            {counts.nuevas} <span style={{ fontSize: "0.9rem", color: "#94a3b8" }}>pendientes</span>
-          </div>
+      {/* 2. Barra de Métricas de Cotización */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="glass-card p-4 rounded-xl">
+          <div className="text-xs font-medium text-slate-400">Total Solicitudes</div>
+          <div className="text-2xl font-black text-white mt-1">{counts.total}</div>
         </div>
-
-        <div
-          style={{
-            background: "rgba(24, 24, 27, 0.8)",
-            padding: "1.2rem",
-            borderRadius: "12px",
-            border: "1px solid rgba(56, 189, 248, 0.25)",
-          }}
-        >
-          <div style={{ fontSize: "0.8rem", color: "#38bdf8", textTransform: "uppercase" }}>💬 En Negociación</div>
-          <div style={{ fontSize: "1.8rem", fontWeight: "900", color: "#38bdf8", marginTop: "0.3rem" }}>
-            {counts.negociacion} <span style={{ fontSize: "0.9rem", color: "#94a3b8" }}>en contacto</span>
-          </div>
+        <div className="glass-card p-4 rounded-xl border-l-2 border-l-amber-500">
+          <div className="text-xs font-medium text-slate-400">Nuevas sin Gestionar</div>
+          <div className="text-2xl font-black text-amber-400 mt-1">{counts.nuevas}</div>
         </div>
-
-        <div
-          style={{
-            background: "rgba(24, 24, 27, 0.8)",
-            padding: "1.2rem",
-            borderRadius: "12px",
-            border: "1px solid rgba(245, 158, 11, 0.3)",
-          }}
-        >
-          <div style={{ fontSize: "0.8rem", color: "#f59e0b", textTransform: "uppercase" }}>🛠️ Convertidas a Taller</div>
-          <div style={{ fontSize: "1.8rem", fontWeight: "900", color: "#f59e0b", marginTop: "0.3rem" }}>
-            {counts.convertidas} <span style={{ fontSize: "0.9rem", color: "#94a3b8" }}>en patio</span>
-          </div>
+        <div className="glass-card p-4 rounded-xl border-l-2 border-l-cyan-500">
+          <div className="text-xs font-medium text-slate-400">En Negociación</div>
+          <div className="text-2xl font-black text-cyan-400 mt-1">{counts.negociacion}</div>
+        </div>
+        <div className="glass-card p-4 rounded-xl border-l-2 border-l-emerald-500">
+          <div className="text-xs font-medium text-slate-400">Aprobadas</div>
+          <div className="text-2xl font-black text-emerald-400 mt-1">{counts.aprobadas}</div>
+        </div>
+        <div className="glass-card p-4 rounded-xl border-l-2 border-l-orange-500">
+          <div className="text-xs font-medium text-slate-400">En Taller Patio</div>
+          <div className="text-2xl font-black text-orange-400 mt-1">{counts.convertidas}</div>
         </div>
       </div>
 
-      {/* Filter / Search Bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "1rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {["todos", ...statuses].map((stg) => {
-            const isSelected = statusFilter === stg;
-            const label = stg === "todos" ? "Todas" : statusInfoMap[stg]?.label || stg;
+      {/* 3. Filtros y Búsqueda */}
+      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por cliente, placa, vehículo o ciudad..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+          <button
+            onClick={() => setStatusFilter("todos")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+              statusFilter === "todos"
+                ? "bg-amber-500 text-carbon-950 shadow-md shadow-amber-500/20"
+                : "bg-carbon-900 text-slate-400 hover:text-white border border-white/5"
+            }`}
+          >
+            Todos ({counts.total})
+          </button>
+          {statuses.map((s) => {
+            const info = statusInfoMap[s] || { label: s };
             return (
               <button
-                key={stg}
-                onClick={() => setStatusFilter(stg)}
-                style={{
-                  padding: "0.5rem 1rem",
-                  borderRadius: "8px",
-                  border: isSelected ? "1px solid #4ade80" : "1px solid rgba(255,255,255,0.08)",
-                  background: isSelected ? "rgba(74, 222, 128, 0.15)" : "rgba(24, 24, 27, 0.6)",
-                  color: isSelected ? "#4ade80" : "#94a3b8",
-                  fontWeight: isSelected ? "800" : "500",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                }}
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  statusFilter === s
+                    ? "bg-amber-500 text-carbon-950 shadow-md shadow-amber-500/20"
+                    : "bg-carbon-900 text-slate-400 hover:text-white border border-white/5"
+                }`}
               >
-                {label}
+                {info.label}
               </button>
             );
           })}
         </div>
-
-        <div style={{ minWidth: "260px" }}>
-          <input
-            type="text"
-            placeholder="🔍 Buscar por cliente, placa, vehículo..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "0.6rem 1rem",
-              borderRadius: "8px",
-              background: "rgba(15, 23, 42, 0.7)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              color: "#fff",
-              fontSize: "0.9rem",
-              outline: "none",
-            }}
-          />
-        </div>
       </div>
 
-      {/* Lista de Cotizaciones en Cards Industriales */}
+      {/* 4. Lista de Cotizaciones */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>
-          Cargando cotizaciones...
+        <div className="py-20 text-center text-slate-500">
+          <div className="inline-block w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p className="text-xs">Cargando cotizaciones desde Firebase...</p>
         </div>
       ) : filteredQuotes.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "4rem 2rem",
-            background: "rgba(24, 24, 27, 0.6)",
-            borderRadius: "12px",
-            border: "1px dashed rgba(255, 255, 255, 0.1)",
-            color: "#94a3b8",
-          }}
-        >
-          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📭</div>
-          <p>No se encontraron cotizaciones con los filtros actuales.</p>
+        <div className="glass-card p-12 rounded-2xl text-center space-y-3">
+          <FileText className="w-12 h-12 text-slate-600 mx-auto" />
+          <h3 className="text-base font-bold text-white">No se encontraron cotizaciones</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            No hay registros para este filtro o búsqueda.
+          </p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {filteredQuotes.map((quote) => {
-            const statusInfo = statusInfoMap[quote.status] || {
-              label: quote.status,
-              color: "#94a3b8",
-              bg: "rgba(255,255,255,0.05)",
-              icon: "•",
+        <div className="space-y-3">
+          {filteredQuotes.map((q) => {
+            const statusConfig = statusInfoMap[q.status] || {
+              label: q.status,
+              color: "text-slate-300",
+              bg: "bg-carbon-800 border-white/10",
             };
 
-            const isConverted = quote.status === "convertida";
+            const cleanPhone = (q.phone || "").replace(/\D/g, "");
+            const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
+              `¡Hola ${q.client_name}! Te saludamos de Mellos Truck respecto a tu cotización para la mula ${q.vehicle_type} (${q.plate || "en proceso"}).`
+            )}`;
 
             return (
               <div
-                key={quote.id}
-                style={{
-                  background: "linear-gradient(135deg, #18181b, #121215)",
-                  borderRadius: "14px",
-                  border: isConverted
-                    ? "1px solid rgba(245, 158, 11, 0.4)"
-                    : "1px solid rgba(255, 255, 255, 0.08)",
-                  padding: "1.4rem",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "1rem",
-                }}
+                key={q.id}
+                className="glass-card p-5 rounded-2xl space-y-3 hover:border-amber-500/30 transition-all"
               >
-                {/* Header de la Tarjeta */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    flexWrap: "wrap",
-                    gap: "0.8rem",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-                    {/* Badge de Placa Colombiana */}
-                    <div
-                      style={{
-                        background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
-                        color: "#000",
-                        fontWeight: "900",
-                        fontSize: "0.95rem",
-                        letterSpacing: "0.15em",
-                        padding: "0.2rem 0.6rem",
-                        borderRadius: "4px",
-                        border: "2px solid #000",
-                        boxShadow: "0 2px 6px rgba(0,0,0,0.6)",
-                        minWidth: "90px",
-                        textAlign: "center",
-                      }}
-                    >
-                      {quote.plate || "SIN PLACA"}
-                    </div>
-
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "800", color: "#f8fafc" }}>
-                        {quote.client_name}
-                      </h3>
-                      <div style={{ fontSize: "0.85rem", color: "#94a3b8", marginTop: "2px" }}>
-                        📞 {quote.phone} • 📍 {quote.city || "Colombia"} • 🚛 {quote.vehicle_type}
-                      </div>
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-black text-sm px-2.5 py-1 rounded-md bg-carbon-950 border border-white/10 text-amber-400">
+                      {q.plate || "SIN PLACA"}
+                    </span>
+                    <h3 className="font-extrabold text-base text-white">{q.client_name}</h3>
+                    <span className="text-xs text-slate-400 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-slate-500" />
+                      {q.city || "Colombia"}
+                    </span>
                   </div>
 
-                  {/* Estado Selector */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  {/* Selector de Estado */}
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
                     <span
-                      style={{
-                        background: statusInfo.bg,
-                        color: statusInfo.color,
-                        padding: "0.3rem 0.8rem",
-                        borderRadius: "20px",
-                        fontSize: "0.8rem",
-                        fontWeight: "800",
-                        border: `1px solid ${statusInfo.color}44`,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.4rem",
-                      }}
+                      className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${statusConfig.bg} ${statusConfig.color}`}
                     >
-                      <span>{statusInfo.icon}</span>
-                      <span>{statusInfo.label}</span>
+                      {statusConfig.label}
                     </span>
-
                     <select
-                      value={quote.status}
-                      onChange={(e) => handleStatusChange(quote.id, e.target.value)}
-                      style={{
-                        padding: "0.35rem 0.6rem",
-                        borderRadius: "6px",
-                        background: "#09090b",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        color: "#cbd5e1",
-                        fontSize: "0.8rem",
-                        cursor: "pointer",
-                      }}
+                      value={q.status}
+                      onChange={(e) => handleStatusChange(q.id, e.target.value)}
+                      className="text-xs px-2 py-1 rounded-lg bg-carbon-950 border border-white/10 text-slate-300 focus:outline-none focus:border-amber-500/50"
                     >
-                      {statuses.map((stg) => (
-                        <option key={stg} value={stg}>
-                          {statusInfoMap[stg]?.label || stg}
+                      {statuses.map((st) => (
+                        <option key={st} value={st}>
+                          {statusInfoMap[st]?.label || st}
                         </option>
                       ))}
                     </select>
                   </div>
                 </div>
 
-                {/* Detalle del Servicio Solicitado */}
-                <div
-                  style={{
-                    background: "rgba(0,0,0,0.3)",
-                    padding: "0.9rem 1.1rem",
-                    borderRadius: "8px",
-                    borderLeft: "4px solid #38bdf8",
-                  }}
-                >
-                  <div style={{ fontSize: "0.85rem", fontWeight: "800", color: "#38bdf8", marginBottom: "0.3rem" }}>
-                    {quote.service}
+                {/* Detalles de la Mula y Servicio */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-500 font-medium">Vehículo:</span>
+                    <div className="font-semibold text-slate-200 mt-0.5">{q.vehicle_type}</div>
                   </div>
-                  <div style={{ fontSize: "0.9rem", color: "#cbd5e1", lineHeight: "1.4" }}>
-                    {quote.details}
+                  <div>
+                    <span className="text-slate-500 font-medium">Servicio Solicitado:</span>
+                    <div className="font-semibold text-amber-400 mt-0.5">{q.service}</div>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-medium">Teléfono / WhatsApp:</span>
+                    <div className="font-semibold text-slate-200 mt-0.5">{q.phone}</div>
                   </div>
                 </div>
 
-                {/* Barra de Acciones Rápidas */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: "0.8rem",
-                    paddingTop: "0.6rem",
-                    borderTop: "1px solid rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                    Recibida el: {new Date(quote.created_at || Date.now()).toLocaleDateString("es-CO", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                {q.details && (
+                  <div className="p-3 rounded-xl bg-carbon-950/60 border border-white/5 text-xs text-slate-300 italic">
+                    "{q.details}"
                   </div>
+                )}
 
-                  <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
-                    {/* Botón WhatsApp Directo */}
+                {/* Barra de Acciones */}
+                <div className="pt-2 flex flex-wrap items-center justify-end gap-2 border-t border-white/5">
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-carbon-950 transition-all flex items-center gap-1.5"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>WhatsApp</span>
+                  </a>
+
+                  {q.status !== "convertida" && (
                     <button
-                      onClick={() => handleContactWhatsApp(quote)}
-                      style={{
-                        padding: "0.5rem 1rem",
-                        background: "#25d366",
-                        color: "#000",
-                        border: "none",
-                        borderRadius: "8px",
-                        fontWeight: "800",
-                        fontSize: "0.85rem",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.4rem",
-                      }}
+                      onClick={() => setSelectedQuoteForWorkshop(q)}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-carbon-950 transition-all flex items-center gap-1.5"
                     >
-                      <span>💬</span> WhatsApp Directo
+                      <Wrench className="w-3.5 h-3.5" />
+                      <span>Enviar a Taller Kanban</span>
                     </button>
+                  )}
 
-                    {/* Botón Convertir a Taller (Kanban) */}
-                    {isConverted ? (
-                      <Link
-                        to="/admin/workshop"
-                        style={{
-                          padding: "0.5rem 1rem",
-                          background: "rgba(245, 158, 11, 0.2)",
-                          color: "#f59e0b",
-                          border: "1px solid rgba(245, 158, 11, 0.4)",
-                          borderRadius: "8px",
-                          fontWeight: "800",
-                          fontSize: "0.85rem",
-                          textDecoration: "none",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.4rem",
-                        }}
-                      >
-                        <span>🚚</span> Ver en Taller Kanban
-                      </Link>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setSelectedQuoteForWorkshop(quote);
-                          setWorkshopLaborCost("2500000");
-                        }}
-                        style={{
-                          padding: "0.5rem 1.1rem",
-                          background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                          color: "#000",
-                          border: "none",
-                          borderRadius: "8px",
-                          fontWeight: "800",
-                          fontSize: "0.85rem",
-                          cursor: "pointer",
-                          boxShadow: "0 2px 10px rgba(245, 158, 11, 0.3)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.4rem",
-                        }}
-                      >
-                        <span>⚡</span> Enviar a Taller (Kanban)
-                      </button>
-                    )}
-                  </div>
+                  {q.status === "convertida" && (
+                    <Link
+                      to="/admin/workshop"
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500 hover:text-white transition-all flex items-center gap-1.5"
+                    >
+                      <Wrench className="w-3.5 h-3.5" />
+                      <span>Ver Mula en Patio</span>
+                    </Link>
+                  )}
                 </div>
               </div>
             );
@@ -670,354 +372,166 @@ export default function QuotesPage() {
         </div>
       )}
 
-      {/* MODAL: Enviar Cotización al Taller */}
+      {/* Modal: Confirmar Envío a Taller con Mano de Obra */}
       {selectedQuoteForWorkshop && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10000,
-            padding: "1rem",
-          }}
-        >
-          <div
-            style={{
-              background: "#18181b",
-              border: "1px solid rgba(245, 158, 11, 0.4)",
-              borderRadius: "16px",
-              padding: "2rem",
-              width: "100%",
-              maxWidth: "500px",
-              boxShadow: "0 25px 50px rgba(0,0,0,0.8)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem" }}>
-              <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "800", color: "#f59e0b" }}>
-                ⚡ Enviar Mula a Taller Kanban
-              </h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-card max-w-md w-full rounded-2xl p-6 space-y-4 border border-white/15">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Transferir a Tablero Kanban</h3>
+              </div>
               <button
                 onClick={() => setSelectedQuoteForWorkshop(null)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "1.2rem", cursor: "pointer" }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-carbon-800"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div
-              style={{
-                background: "rgba(0,0,0,0.3)",
-                padding: "1rem",
-                borderRadius: "10px",
-                marginBottom: "1.2rem",
-                fontSize: "0.9rem",
-              }}
-            >
-              <div style={{ marginBottom: "0.4rem" }}>
-                <span style={{ color: "#94a3b8" }}>Cliente: </span>
-                <strong style={{ color: "#f8fafc" }}>{selectedQuoteForWorkshop.client_name}</strong>
-              </div>
-              <div style={{ marginBottom: "0.4rem" }}>
-                <span style={{ color: "#94a3b8" }}>Vehículo / Mula: </span>
-                <strong style={{ color: "#f8fafc" }}>{selectedQuoteForWorkshop.vehicle_type}</strong>
-              </div>
-              <div style={{ marginBottom: "0.4rem" }}>
-                <span style={{ color: "#94a3b8" }}>Placa: </span>
-                <strong style={{ color: "#fde047" }}>{selectedQuoteForWorkshop.plate || "PENDIENTE"}</strong>
-              </div>
-              <div>
-                <span style={{ color: "#94a3b8" }}>Trabajo a realizar: </span>
-                <span style={{ color: "#cbd5e1" }}>{selectedQuoteForWorkshop.service}</span>
-              </div>
-            </div>
+            <p className="text-xs text-slate-300">
+              La mula <strong>{selectedQuoteForWorkshop.vehicle_type}</strong> (Placa: <strong>{selectedQuoteForWorkshop.plate || "S/P"}</strong>) de <strong>{selectedQuoteForWorkshop.client_name}</strong> ingresará a la fase de <strong>[Ingreso]</strong> en el patio.
+            </p>
 
-            <div style={{ marginBottom: "1.4rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", color: "#94a3b8", marginBottom: "0.4rem" }}>
-                Mano de Obra Estimada ($ COP)
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Costo Estimado de Mano de Obra ($COP)
               </label>
               <input
                 type="number"
                 value={workshopLaborCost}
                 onChange={(e) => setWorkshopLaborCost(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.7rem",
-                  borderRadius: "8px",
-                  background: "#09090b",
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  color: "#fff",
-                  fontSize: "1rem",
-                  fontWeight: "800",
-                }}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white focus:outline-none focus:border-amber-500/50"
               />
-              <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "0.3rem 0 0 0" }}>
-                La mula ingresará inmediatamente a la fase 1 (INGRESO) del tablero Kanban.
-              </p>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.8rem" }}>
+            <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
               <button
-                type="button"
                 onClick={() => setSelectedQuoteForWorkshop(null)}
-                style={{
-                  padding: "0.65rem 1.2rem",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#94a3b8",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-carbon-800 text-slate-300 hover:bg-carbon-700"
               >
                 Cancelar
               </button>
-
               <button
-                type="button"
-                onClick={handleConfirmSendToWorkshop}
-                style={{
-                  padding: "0.65rem 1.4rem",
-                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                  color: "#000",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontWeight: "800",
-                  cursor: "pointer",
-                  boxShadow: "0 4px 15px rgba(245, 158, 11, 0.4)",
-                }}
+                onClick={handleConfirmWorkshop}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110"
               >
-                Confirmar e Ingresar a Taller
+                Confirmar Ingreso a Patio
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: Nueva Cotización Manual */}
+      {/* Modal: Crear Nueva Cotización Manual */}
       {showCreateModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10000,
-            padding: "1rem",
-          }}
-        >
-          <div
-            style={{
-              background: "#18181b",
-              border: "1px solid rgba(74, 222, 128, 0.3)",
-              borderRadius: "16px",
-              padding: "2rem",
-              width: "100%",
-              maxWidth: "540px",
-              boxShadow: "0 25px 50px rgba(0,0,0,0.8)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem" }}>
-              <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "800", color: "#4ade80" }}>
-                📝 Registrar Cotización Manual
-              </h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass-card max-w-lg w-full rounded-2xl p-6 space-y-4 border border-white/15 my-8">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Registrar Nueva Cotización</h3>
+              </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "1.2rem", cursor: "pointer" }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-carbon-800"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateQuote} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <form onSubmit={handleCreateQuote} className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                    Nombre del Cliente *
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre Transportador *</label>
                   <input
                     type="text"
                     required
-                    name="client_name"
                     value={form.client_name}
-                    onChange={handleChange}
-                    placeholder="Don Orlando Morales"
-                    style={{
-                      width: "100%",
-                      padding: "0.65rem",
-                      borderRadius: "8px",
-                      background: "#09090b",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                    }}
+                    onChange={(e) => setForm({ ...form, client_name: e.target.value })}
+                    placeholder="Don Carlos Rodríguez"
+                    className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
-
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                    Teléfono WhatsApp *
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Teléfono / WhatsApp *</label>
                   <input
-                    type="tel"
+                    type="text"
                     required
-                    name="phone"
                     value={form.phone}
-                    onChange={handleChange}
-                    placeholder="573147890123"
-                    style={{
-                      width: "100%",
-                      padding: "0.65rem",
-                      borderRadius: "8px",
-                      background: "#09090b",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                    }}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="573104567890"
+                    className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                    Ciudad
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Placa Mula</label>
                   <input
                     type="text"
-                    name="city"
-                    value={form.city}
-                    onChange={handleChange}
-                    style={{
-                      width: "100%",
-                      padding: "0.65rem",
-                      borderRadius: "8px",
-                      background: "#09090b",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                    Placa (Opcional)
-                  </label>
-                  <input
-                    type="text"
-                    name="plate"
-                    placeholder="SKR-901"
                     value={form.plate}
-                    onChange={(e) => setForm({ ...form, plate: e.target.value.toUpperCase() })}
-                    style={{
-                      width: "100%",
-                      padding: "0.65rem",
-                      borderRadius: "8px",
-                      background: "#09090b",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fde047",
-                      fontWeight: "800",
-                    }}
+                    onChange={(e) => setForm({ ...form, plate: e.target.value })}
+                    placeholder="WTL-892"
+                    className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white uppercase font-mono focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo de Vehículo</label>
+                  <input
+                    type="text"
+                    value={form.vehicle_type}
+                    onChange={(e) => setForm({ ...form, vehicle_type: e.target.value })}
+                    placeholder="Kenworth T800"
+                    className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Ciudad</label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    placeholder="Medellín"
+                    className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                  Mula / Tipo de Vehículo *
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Trabajo o Accesorio Requerido</label>
                 <input
                   type="text"
-                  required
-                  name="vehicle_type"
-                  placeholder="Kenworth T800 / Mack Vision / International"
-                  value={form.vehicle_type}
-                  onChange={handleChange}
-                  style={{
-                    width: "100%",
-                    padding: "0.65rem",
-                    borderRadius: "8px",
-                    background: "#09090b",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "#fff",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                  Servicio Solicitado *
-                </label>
-                <input
-                  type="text"
-                  required
-                  name="service"
                   value={form.service}
-                  onChange={handleChange}
-                  placeholder="Fabricación de Bomper, Viseras, Latonería o Repuestos"
-                  style={{
-                    width: "100%",
-                    padding: "0.65rem",
-                    borderRadius: "8px",
-                    background: "#09090b",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "#fff",
-                  }}
+                  onChange={(e) => setForm({ ...form, service: e.target.value })}
+                  placeholder='Bomper en Acero 20", Visera Drop Visor, Luces LED'
+                  className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                  Detalles / Especificaciones *
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Detalles Adicionales</label>
                 <textarea
-                  required
-                  name="details"
-                  rows="3"
+                  rows="2"
                   value={form.details}
-                  onChange={handleChange}
-                  placeholder="Especificaciones de cortes láser, medidas en pulgadas, luces..."
-                  style={{
-                    width: "100%",
-                    padding: "0.65rem",
-                    borderRadius: "8px",
-                    background: "#09090b",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    resize: "none",
-                  }}
-                />
+                  onChange={(e) => setForm({ ...form, details: e.target.value })}
+                  placeholder="Especificaciones de corte láser, calibre, tiempos requeridos..."
+                  className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                ></textarea>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.8rem", marginTop: "0.5rem" }}>
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  style={{
-                    padding: "0.65rem 1.2rem",
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#94a3b8",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-carbon-800 text-slate-300 hover:bg-carbon-700"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  style={{
-                    padding: "0.65rem 1.4rem",
-                    background: "linear-gradient(135deg, #10b981, #059669)",
-                    color: "#000",
-                    border: "none",
-                    borderRadius: "8px",
-                    fontWeight: "800",
-                    cursor: "pointer",
-                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110"
                 >
                   Guardar Cotización
                 </button>

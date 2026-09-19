@@ -2,314 +2,169 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import TransformationShowcase from "../components/TransformationShowcase";
 import QuickQuoteModal from "../components/QuickQuoteModal";
+import { settingsService, productsService, quotesService } from "../services/firebaseService.js";
 import { showSuccessToast, showErrorToast } from "../utils/alerts";
-
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, "")}/api`
-  : "http://localhost:4000/api";
-
-const DEFAULT_CONFIG = {
-  whatsappNumber: "573104567890",
-  whatsappDefaultMsg: "Hola Mellos Truck, quiero cotizar accesorios y trabajos de taller para mi camión",
-  instagramUser: "@mellos_trucks",
-  instagramUrl: "https://www.instagram.com/mellos_trucks/",
-  locationText: "Fontibón Zona Industrial, Bogotá D.C. & Medellín, Colombia",
-
-  announcementBar: {
-    enabled: true,
-    badgeText: "🔥 CUPOS LIMITADOS",
-    message: "Fabricación artesanal de Bompers en Acero 304 con entrega prioritaria este mes.",
-    buttonText: "⚡ Cotizar Cupo de Taller ➔",
-    link: "#cotizar",
-  },
-
-  hero: {
-    badgeText: "★ TALLER DE MODIFICACIONES ARTESANALES",
-    headline: "TRANSFORMAMOS TU MULA EN UNA LEYENDA DEL ASFALTO",
-    subtitle:
-      "Especialistas en acero inoxidable calidad 304, corte láser personalizado, viseras tipo espejo, bompers de lujo y tienda física en container.",
-    ctaPrimaryText: "⚡ Cotizar Mi Nave Ahora",
-    ctaPrimaryLink: "#cotizar",
-    ctaSecondaryText: "🎬 Explorar Showroom 4K",
-    ctaSecondaryLink: "/galeria/Kenworth-T800-Placa-WTL892",
-    featuredTruck: {
-      tag: "PROYECTO INSIGNIA • ENERO 2026",
-      title: "Kenworth T800 Aerocab",
-      specs: "Bomper 20\" corte láser • Visera espejo • Rines diamantados",
-      imageUrl: "/images/showroom/kenworth_after.jpg",
-      magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
-    },
-  },
-
-  metrics: [
-    { value: "100% Acero", label: "Inoxidable Calidad 304" },
-    { value: "+1,200", label: "Mulas Transformadas" },
-    { value: "Garantía", label: "De Taller & Soldadura TIG" },
-  ],
-
-  beforeAfter: {
-    subheading: "EL CAMBIO HABLA POR SÍ SOLO",
-    title: "Estudio Cinemático de Transformaciones: Antes vs. Después",
-    description:
-      "Explora la transformación artesanal en alta definición: compara el estado de llegada al taller contra la entrega final con acabados en acero inoxidable 304 calidad espejo.",
-    truckTitle: "Kenworth T800 • Placa WTL-892",
-    truckDescription: "Transformación completa de estética, iluminación perimetral y bomper de acero inoxidable.",
-    beforeImage: "/images/showroom/kenworth_before.jpg",
-    afterImage: "/images/showroom/kenworth_after.jpg",
-    beforeLabel: "ANTES (Llegada al taller)",
-    afterLabel: "DESPUÉS (Mellos Truck)",
-    projectLink: "/galeria/Kenworth-T800-Placa-WTL892",
-    specs: [
-      { icon: "⏱️", label: "Tiempo en Taller", value: "8 Días Hábiles" },
-      { icon: "🛡️", label: "Garantía de Obra", value: "De por vida en soldadura TIG" },
-      { icon: "💎", label: "Material Principal", value: "Inox 304 Grado Espejo" },
-      { icon: "⚡", label: "Nivel de Modificación", value: "Stage 3 (Full Custom)" },
-    ],
-    hotspots: [
-      {
-        id: "bumper",
-        tag: "BOMPER ARTESANAL",
-        title: "Bomper de 20\" en Acero Inoxidable Calibre 10",
-        subtitle: "Corte láser de precisión con acabado tipo espejo y acoples de aire ocultos.",
-        image: "/images/showroom/detail_bumper_chrome.jpg",
-        x: 28,
-        y: 78,
-      },
-      {
-        id: "visera",
-        tag: "VISERA & CORNETAS",
-        title: "Visera Americana Gangsta Calibre 10 & Cornetas",
-        subtitle: "Acero inoxidable calidad 304 acompañada de cornetas Hadley neumáticas de 24V.",
-        image: "/images/showroom/detail_visera_cornetas.jpg",
-        x: 68,
-        y: 20,
-      },
-      {
-        id: "rines",
-        tag: "RINES & COPAS SPIKES",
-        title: "Rines Pulidos Diamantados con Copas Spikes",
-        subtitle: "Tratamiento de pulido artesanal a espejo con tuercas cónicas de seguridad.",
-        image: "/images/showroom/detail_rines_spikes.jpg",
-        x: 48,
-        y: 74,
-      },
-    ],
-    projects: [
-      {
-        id: "kw-wtl892",
-        name: "Kenworth T800",
-        plate: "WTL-892",
-        badge: "ACERO ESPEJO 304",
-        beforeImage: "/images/showroom/kenworth_before.jpg",
-        afterImage: "/images/showroom/kenworth_after.jpg",
-        magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
-        summary: "Bomper artesanal de 20\", visera tipo espejo y doble corneta Hadley neumática.",
-      },
-      {
-        id: "mack-vision",
-        name: "Mack Vision Elite",
-        plate: "MKV-404",
-        badge: "CUSTOM BLACK & GOLD",
-        beforeImage: "/images/showroom/kenworth_before.jpg",
-        afterImage: "/images/showroom/mack_truck_custom.jpg",
-        magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
-        summary: "Pintura tricapa negro profundo, visera aerodinámica e iluminación LED perimetral.",
-      },
-      {
-        id: "peterbilt-389",
-        name: "Peterbilt 389 Classic",
-        plate: "PET-389",
-        badge: "SHOW TRUCK AMERICANO",
-        beforeImage: "/images/showroom/kenworth_before.jpg",
-        afterImage: "/images/showroom/peterbilt_truck_custom.jpg",
-        magicLink: "/galeria/Kenworth-T800-Placa-WTL892",
-        summary: "Trompa extendida clásica, chimeneas monstruo de 8\" y visera estilo americano.",
-      },
-    ],
-  },
-};
+import {
+  Sparkles,
+  Truck,
+  Wrench,
+  Package,
+  CheckCircle2,
+  Shield,
+  Clock,
+  Phone,
+  MessageCircle,
+  MapPin,
+  ExternalLink,
+  ChevronRight,
+  ArrowRight,
+  X,
+  Menu,
+  Send,
+  Flame,
+} from "lucide-react";
 
 export default function PublicHome() {
-  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const [config, setConfig] = useState(null);
+  const [liveProducts, setLiveProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [quoteInitialService, setQuoteInitialService] = useState("");
-  const [quoteInitialVehicle, setQuoteInitialVehicle] = useState("");
 
-  const handleOpenQuote = (service = "", vehicle = "") => {
-    if (service) setQuoteInitialService(service);
-    if (vehicle) setQuoteInitialVehicle(vehicle);
-    setQuoteModalOpen(true);
-  };
-
-  const [form, setForm] = useState({
-    name: "",
+  // Formulario de cotización directa en la portada
+  const [quoteForm, setQuoteForm] = useState({
+    client_name: "",
     phone: "",
     city: "Medellín",
     vehicle_type: "Kenworth T800",
     plate: "",
-    service: "Bomper de Acero Inoxidable & Visera",
+    service: 'Bomper de Acero Inoxidable 20"',
     details: "",
   });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [liveProducts, setLiveProducts] = useState([]);
+  const [submittingQuote, setSubmittingQuote] = useState(false);
 
-  // 1. Cargar configuración dinámica de la Landing Page
   useEffect(() => {
-    fetch(`${API_BASE}/settings/landing`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.config) {
-          setConfig((prev) => ({
-            ...prev,
-            ...data.config,
-            hero: { ...prev.hero, ...(data.config.hero || {}) },
-            announcementBar: { ...prev.announcementBar, ...(data.config.announcementBar || {}) },
-            beforeAfter: { ...prev.beforeAfter, ...(data.config.beforeAfter || {}) },
-            metrics: Array.isArray(data.config.metrics) && data.config.metrics.length > 0 ? data.config.metrics : prev.metrics,
-          }));
+    async function loadData() {
+      try {
+        const [settingsRes, prodRes] = await Promise.all([
+          settingsService.getLanding(),
+          productsService.getAll(),
+        ]);
+        if (settingsRes.success && settingsRes.config) {
+          setConfig(settingsRes.config);
         }
-      })
-      .catch((err) => console.warn("Usando configuración local de portada:", err));
+        if (prodRes.products) {
+          setLiveProducts(prodRes.products.slice(0, 6));
+        }
+      } catch (err) {
+        console.warn("Error cargando portada:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
   }, []);
 
-  // 2. Cargar productos destacados del Container
-  useEffect(() => {
-    fetch(`${API_BASE}/products`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.products && data.products.length > 0) {
-          setLiveProducts(data.products);
-        }
-      })
-      .catch((err) => console.warn("Usando catálogo estático destacado:", err));
-  }, []);
+  const handleOpenQuote = (service = "", truck = "") => {
+    setQuoteInitialService(service ? `${service} (${truck || "Pesado"})` : "");
+    setIsQuoteModalOpen(true);
+  };
+
+  const handleDirectQuoteSubmit = async (e) => {
+    e.preventDefault();
+    if (!quoteForm.client_name || !quoteForm.phone) {
+      showErrorToast("Por favor ingresa tu nombre y teléfono WhatsApp");
+      return;
+    }
+
+    setSubmittingQuote(true);
+    try {
+      await quotesService.create({
+        ...quoteForm,
+        details: quoteForm.details || "Cotización desde formulario de pie de página",
+      });
+
+      showSuccessToast("¡Cotización recibida! Abriendo asesoría por WhatsApp...");
+
+      const cleanPhone = (config?.whatsappNumber || "573104567890").replace(/\D/g, "");
+      const waText = encodeURIComponent(
+        `¡Hola Mellos Truck! 🚛🔥\nQuiero cotizar:\n- Nombre: ${quoteForm.client_name}\n- Mula: ${quoteForm.vehicle_type} (Placa: ${quoteForm.plate || "S/P"})\n- Ciudad: ${quoteForm.city}\n- Trabajo: ${quoteForm.service}\n- Detalles: ${quoteForm.details || "Quiero más información de tiempos y costos."}`
+      );
+
+      window.open(`https://wa.me/${cleanPhone}?text=${waText}`, "_blank");
+
+      setQuoteForm({
+        client_name: "",
+        phone: "",
+        city: "Medellín",
+        vehicle_type: "Kenworth T800",
+        plate: "",
+        service: 'Bomper de Acero Inoxidable 20"',
+        details: "",
+      });
+    } catch (err) {
+      showErrorToast("Error enviando cotización");
+    } finally {
+      setSubmittingQuote(false);
+    }
+  };
+
+  if (loading || !config) {
+    return (
+      <div className="min-h-screen bg-carbon-950 flex flex-col items-center justify-center p-4">
+        <div className="w-12 h-12 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+          Iniciando Mellos Truck 4K...
+        </p>
+      </div>
+    );
+  }
 
   const cleanWaNumber = (config?.whatsappNumber || "573104567890").replace(/\D/g, "");
 
   const services = [
     {
-      title: "Fabricación de Bompers en Acero",
-      text: "Diseño y fabricación a medida de bompers de 18\" a 22\" en lámina de acero inoxidable calidad 304, corte láser computarizado, soldadura TIG pulida e iluminación LED integrada.",
+      title: 'Fabricación de Bompers en Acero',
+      text: 'Diseño y fabricación a medida de bompers de 18" a 22" en lámina de acero inoxidable calidad 304, corte láser computarizado, soldadura TIG pulida e iluminación LED integrada.',
       badge: "Especialidad de la Casa",
+      icon: "🛡️",
     },
     {
       title: "Viseras Americanas & Cornetas",
       text: "Montaje de viseras estilo americano en acero espejo (Drop Visors), cornetas de tren Hadley con pulmones de aire y luces de gálibo tipo sandía (watermelon LEDs).",
       badge: "Lujo & Estilo",
+      icon: "📢",
     },
     {
-      title: "Latonería, Pintura & Estética Pesada",
+      title: "Latonería, Pintura & Acabados",
       text: "Intervenciones estéticas de cabina, restauración de chasis, pulido cerámico para camiones de exhibición y personalización de estribos y tanques de combustible.",
       badge: "Acabado Showroom",
+      icon: "🎨",
     },
     {
       title: "Tienda Container de Lujos & Repuestos",
       text: "Punto de venta físico y distribución de rines cromados Alcoa, tapas de espárragos tipo spike, tuberías de escape cromadas y accesorios eléctricos.",
       badge: "Punto Físico",
+      icon: "📦",
     },
   ];
-
-  const fallbackFeaturedProducts = [
-    {
-      title: "Bomper de Acero Inoxidable 20\" con Luces LED",
-      category: "Estructura & Cromo",
-      image: "/images/showroom/detail_bumper_chrome.jpg",
-      description: "Acero inoxidable 304 calibre pesado, corte láser de precisión, luces LED ámbar impermeables IP68 y acabado espejo.",
-      price: 3500000,
-    },
-    {
-      title: "Visera Americana Drop Visor & Doble Corneta",
-      category: "Cabina & Lujo",
-      image: "/images/showroom/detail_visera_cornetas.jpg",
-      description: "Visera americana con ajuste aerodinámico para Kenworth, Mack e International, con base para cornetas de alta resonancia.",
-      price: 1800000,
-    },
-    {
-      title: "Rines Pulidos Alcoa con Spikes Cromados",
-      category: "Ruedas & Ejes",
-      image: "/images/showroom/detail_rines_spikes.jpg",
-      description: "Rines de aluminio forjado pulido espejo, copas cromadas y espárragos en punta para un look agresivo y respetado en ruta.",
-      price: 4200000,
-    },
-  ];
-
-  const displayProducts = liveProducts.length > 0
-    ? liveProducts.map((p) => ({
-        title: p.nombre,
-        category: p.categoria || "Accesorio",
-        image: p.imagen_url || "/images/showroom/detail_bumper_chrome.jpg",
-        description: p.descripcion || `Stock disponible: ${p.stock} unidades en el Container.`,
-        price: p.precio_venta,
-      }))
-    : fallbackFeaturedProducts;
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name || !form.phone) {
-      showErrorToast("Por favor ingresa tu nombre y número de WhatsApp");
-      setMessage("⚠️ Por favor ingresa al menos tu nombre y número de WhatsApp.");
-      return;
-    }
-
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const response = await fetch(`${API_BASE}/quotes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          client_name: form.name,
-          phone: form.phone,
-          city: form.city || "No especificada",
-          vehicle_type: form.vehicle_type,
-          plate: form.plate || null,
-          service: form.service,
-          details: form.details || "Cotización solicitada desde la página principal",
-        }),
-      });
-
-      if (response.ok) {
-        showSuccessToast("¡Solicitud enviada! Conectando con asesor...");
-      }
-    } catch (err) {
-      console.warn("Registrando localmente:", err);
-    } finally {
-      setLoading(false);
-      setMessage("✅ ¡Solicitud enviada! Te estamos conectando con un asesor por WhatsApp...");
-
-      // Redirigir a WhatsApp con el mensaje pre-cargado al número dinámico configurado en admin
-      const waText = encodeURIComponent(
-        `¡Hola Mellos Truck! 🚛🔥\nQuiero cotizar para mi vehículo:\n- Nombre: ${form.name}\n- Mula/Camión: ${form.vehicle_type} (Placa: ${form.plate || "Sin especificar"})\n- Servicio: ${form.service}\n- Ciudad: ${form.city}\n- Detalles: ${form.details || "Quiero más información de precios y tiempos."}`
-      );
-      window.open(`https://wa.me/${cleanWaNumber}?text=${waText}`, "_blank");
-    }
-  };
 
   return (
-    <div className="public-page">
-      {/* 0. Barra Superior de Anuncios Promocionales (Configurable desde Admin) */}
-      {config?.announcementBar?.enabled && !announcementDismissed && (
-        <aside className="top-announcement-bar" aria-label="Aviso promocional">
-          <div className="announcement-content">
-            <span className="announcement-badge">{config.announcementBar.badgeText}</span>
-            <span className="announcement-text">{config.announcementBar.message}</span>
+    <div className="min-h-screen bg-carbon-950 text-slate-100 selection:bg-amber-500 selection:text-carbon-950">
+      {/* 0. Barra Superior de Anuncios */}
+      {config.announcementBar?.enabled && !announcementDismissed && (
+        <aside className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-carbon-950 px-4 py-2 text-xs font-bold flex items-center justify-between sticky top-0 z-50 shadow-md">
+          <div className="max-w-7xl mx-auto flex-1 flex items-center justify-center gap-2 sm:gap-4 flex-wrap text-center">
+            <span className="px-2 py-0.5 rounded bg-carbon-950 text-amber-400 text-[10px] font-black uppercase tracking-wider">
+              {config.announcementBar.badgeText || "AVISO"}
+            </span>
+            <span>{config.announcementBar.message}</span>
             {config.announcementBar.buttonText && (
               <button
-                type="button"
                 onClick={() => handleOpenQuote()}
-                className="announcement-btn"
-                style={{ cursor: "pointer", border: "1px solid rgba(245, 158, 11, 0.4)" }}
+                className="underline hover:opacity-80 transition-opacity ml-1"
               >
                 {config.announcementBar.buttonText}
               </button>
@@ -317,205 +172,214 @@ export default function PublicHome() {
           </div>
           <button
             onClick={() => setAnnouncementDismissed(true)}
-            className="announcement-close"
-            title="Cerrar anuncio"
-            aria-label="Cerrar"
+            className="p-1 hover:bg-black/10 rounded"
+            aria-label="Cerrar aviso"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </aside>
       )}
 
-      {/* 1. Header Ultra-Pro Mellos Truck (Sin WhatsApp saturado, solo CTAs de alto impacto) */}
-      <header className="public-header">
-        <div className="public-container header-inner">
-          {/* Logo e Identidad de Marca Pro */}
-          <Link to="/" className="brand-box-pro">
-            <div className="brand-logo-pro">
-              <span className="logo-initials">MT</span>
-              <span className="logo-halo"></span>
+      {/* 1. Header Principal Glassmorphic */}
+      <header className="sticky top-0 z-40 bg-carbon-950/85 backdrop-blur-md border-b border-white/10 px-4 sm:px-8 py-3.5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          {/* Brand Logo */}
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-black text-carbon-950 text-base shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform">
+              MT
             </div>
-            <div className="brand-text-block">
-              <h2 className="brand-heading">
-                MELLOS <span className="brand-accent">TRUCK</span>
-              </h2>
-              <div className="brand-sub-badge">
-                <span className="live-status-dot"></span>
-                <span>TALLER PESADOS & CONTAINER 4K</span>
+            <div>
+              <div className="font-extrabold text-base tracking-wider text-white">
+                MELLOS <span className="text-amber-400">TRUCK</span>
+              </div>
+              <div className="text-[10px] font-bold text-amber-500 tracking-wider uppercase">
+                TALLER PESADOS & CONTAINER 4K
               </div>
             </div>
           </Link>
 
-          {/* Navegación Desktop con Isla Glassmorphic (Secciones de contenido) */}
-          <nav className="public-nav-island" aria-label="Navegación principal">
-            <a href="#transformacion" className="nav-pill-link">
-              <span className="nav-pill-icon">🎬</span>
-              <span>Transformaciones</span>
+          {/* Navegación Desktop */}
+          <nav className="hidden md:flex items-center gap-1 bg-carbon-900/80 px-3 py-1.5 rounded-2xl border border-white/10">
+            <a href="#transformacion" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-carbon-800 transition-colors">
+              🎬 Transformaciones
             </a>
-            <a href="#catalogo" className="nav-pill-link">
-              <span className="nav-pill-icon">📦</span>
-              <span>Tienda Container</span>
+            <a href="#catalogo" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-carbon-800 transition-colors">
+              📦 Tienda Container
             </a>
-            <a href="#servicios" className="nav-pill-link">
-              <span className="nav-pill-icon">🛠️</span>
-              <span>Servicios</span>
+            <a href="#servicios" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-carbon-800 transition-colors">
+              🛠️ Trabajos de Taller
+            </a>
+            <a href="#contacto" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-carbon-800 transition-colors">
+              📍 Ubicación & Contacto
             </a>
           </nav>
 
-          {/* Grupo de Acciones Ultra-Pro (WhatsApp exclusivo en botón flotante inferior) */}
-          <div className="header-cta-group">
-            <Link
-              to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}
-              className="btn-header-showroom"
-              title="Explorar el Showroom 4K interactivo"
-            >
-              <span>🎬</span>
-              <span>Showroom 4K</span>
-            </Link>
-
+          {/* Botón Cotizar & Menú Móvil */}
+          <div className="flex items-center gap-2">
             <button
-              type="button"
               onClick={() => handleOpenQuote()}
-              className="btn-header-quote-pro pulse-btn"
-              title="Cotizar mi vehículo ahora"
-              style={{ border: "none", cursor: "pointer" }}
+              className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-amber-600 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all flex items-center gap-1.5"
             >
-              <span>⚡</span>
-              <span>Cotizar Mi Mula</span>
+              <span>⚡ Cotizar Cupo</span>
             </button>
 
-            {/* Botón Hamburguesa Móvil */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="mobile-nav-toggle-btn"
+              className="md:hidden p-2 rounded-xl bg-carbon-900 text-slate-300 hover:text-white border border-white/10"
               aria-label="Abrir menú de navegación"
             >
-              {mobileMenuOpen ? "✕" : "☰"}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Menú Desplegable Móvil */}
+        {/* Drawer Móvil */}
         {mobileMenuOpen && (
-          <div className="mobile-nav-drawer">
-            <nav className="mobile-nav-links">
-              <a
-                href="#transformacion"
-                onClick={() => setMobileMenuOpen(false)}
-                className="mobile-nav-link"
-              >
-                <span>🎬</span>
-                <span>Showroom & Transformaciones</span>
-              </a>
-              <a
-                href="#catalogo"
-                onClick={() => setMobileMenuOpen(false)}
-                className="mobile-nav-link"
-              >
-                <span>📦</span>
-                <span>Tienda Container & Catálogo</span>
-              </a>
-              <a
-                href="#servicios"
-                onClick={() => setMobileMenuOpen(false)}
-                className="mobile-nav-link"
-              >
-                <span>🛠️</span>
-                <span>Servicios de Taller</span>
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleOpenQuote();
-                }}
-                className="mobile-nav-link"
-                style={{ background: "#161b26", width: "100%", textAlign: "left", cursor: "pointer" }}
-              >
-                <span>⚡</span>
-                <span>Cotizar Proyecto</span>
-              </button>
-              <Link
-                to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}
-                onClick={() => setMobileMenuOpen(false)}
-                className="mobile-nav-link highlight"
-              >
-                <span>🎬</span>
-                <span>Ver Showroom 4K Completo</span>
-              </Link>
-            </nav>
+          <div className="md:hidden pt-4 pb-2 space-y-2 border-t border-white/10 mt-3 animate-fade-in">
+            <a
+              href="#transformacion"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:bg-carbon-900"
+            >
+              🎬 Transformaciones Antes vs Después
+            </a>
+            <a
+              href="#catalogo"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:bg-carbon-900"
+            >
+              📦 Catálogo Tienda Container
+            </a>
+            <a
+              href="#servicios"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:bg-carbon-900"
+            >
+              🛠️ Servicios de Modificación
+            </a>
+            <a
+              href="#contacto"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:bg-carbon-900"
+            >
+              📍 Contacto & WhatsApp
+            </a>
+            <Link
+              to="/admin/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-xl text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20"
+            >
+              🔐 Acceso Administrativo
+            </Link>
           </div>
         )}
       </header>
 
-      {/* 2. Hero Principal Cinematográfico */}
-      <section className="hero-section" id="inicio">
-        <div className="public-container hero-grid">
-          <div className="hero-copy">
-            <div className="hero-badge-container">
-              <span className="hero-badge-dot"></span>
-              <span className="hero-badge">{config.hero.badgeText}</span>
-            </div>
-            <h1>{config.hero.headline}</h1>
-            <p>{config.hero.subtitle}</p>
+      {/* 2. Hero Section */}
+      <section className="relative pt-12 pb-20 sm:pt-20 sm:pb-28 overflow-hidden">
+        {/* Glows de fondo */}
+        <div className="absolute top-1/4 -left-48 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute top-1/3 -right-48 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
-            <div className="hero-actions">
-              <button
-                type="button"
-                onClick={() => handleOpenQuote()}
-                className="primary-btn pulse-btn"
-                style={{ cursor: "pointer", border: "none" }}
-              >
-                {config.hero.ctaPrimaryText || "⚡ Cotizar Mi Nave Ahora"}
-              </button>
-              <Link
-                to={config.hero.ctaSecondaryLink || "/galeria/Kenworth-T800-Placa-WTL892"}
-                className="secondary-btn"
-              >
-                {config.hero.ctaSecondaryText || "🎬 Explorar Showroom 4K"}
-              </Link>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            {/* Columna Izquierda: Textos y CTAs */}
+            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-black uppercase tracking-widest">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{config.hero.badgeText || "LÍDERES EN MODIFICACIÓN DE PESADOS"}</span>
+              </div>
 
-            <div className="hero-metrics">
-              {config.metrics.map((m, idx) => (
-                <div className="metric-card" key={idx}>
-                  <strong>{m.value}</strong>
-                  <span>{m.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+              <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-[1.1]">
+                {config.hero.headline || "POTENCIA, ACERO & PRESENCIA PARA TU MULA"}
+              </h1>
 
-          <div className="hero-visual">
-            <div className="hero-featured-image-wrapper">
-              <img
-                src={config.hero.featuredTruck.imageUrl}
-                alt={config.hero.featuredTruck.title}
-                className="hero-main-truck-img"
-              />
-              <div className="hero-image-overlay-card">
-                <span className="overlay-tag">{config.hero.featuredTruck.tag}</span>
-                <h4>{config.hero.featuredTruck.title}</h4>
-                <p>{config.hero.featuredTruck.specs}</p>
-                <Link
-                  to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}
-                  className="overlay-link"
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                {config.hero.subtitle ||
+                  "En Mellos Truck convertimos tu vehículo de carga pesada en una verdadera obra de arte en carretera. Fabricación artesanal de bompers en acero inoxidable 304, viseras americanas, iluminación LED y lujos de alto nivel."}
+              </p>
+
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
+                <button
+                  onClick={() => handleOpenQuote()}
+                  className="px-6 py-3.5 rounded-2xl text-sm font-black bg-gradient-to-r from-amber-500 to-amber-600 text-carbon-950 shadow-xl shadow-amber-500/25 hover:brightness-110 transition-all flex items-center gap-2"
                 >
-                  Ver Magic Link del Vehículo ➜
+                  <span>⚡ Cotizar Mi Nave Ahora</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                <Link
+                  to="/galeria/Kenworth-T800-Placa-WTL892"
+                  className="px-6 py-3.5 rounded-2xl text-sm font-bold bg-carbon-900 text-slate-200 border border-white/10 hover:bg-carbon-850 hover:text-white transition-all flex items-center gap-2"
+                >
+                  <span>🎬 Explorar Showroom 4K</span>
+                  <ExternalLink className="w-4 h-4 text-amber-400" />
                 </Link>
+              </div>
+
+              {/* Tira de Métricas de Confianza */}
+              <div className="grid grid-cols-3 gap-3 pt-6 border-t border-white/10 max-w-lg mx-auto lg:mx-0">
+                {(config.metrics || []).map((m, idx) => (
+                  <div key={idx} className="text-center lg:text-left">
+                    <div className="text-2xl sm:text-3xl font-black text-amber-400">{m.value}</div>
+                    <div className="text-[11px] font-semibold text-slate-400 mt-0.5">{m.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Columna Derecha: Tarjeta Insignia de la Mula */}
+            <div className="lg:col-span-5">
+              <div className="glass-card rounded-3xl p-4 border border-white/15 shadow-2xl space-y-3 group">
+                <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-carbon-950">
+                  <img
+                    src={config.hero.featuredTruck?.imageUrl || "/images/showroom/kenworth_after.jpg"}
+                    alt={config.hero.featuredTruck?.title || "Kenworth T800"}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-lg bg-carbon-950/90 backdrop-blur-md border border-white/15 text-[10px] font-black uppercase tracking-wider text-amber-400">
+                    {config.hero.featuredTruck?.tag || "PROYECTO DESTACADO"}
+                  </div>
+                </div>
+
+                <div className="p-2 space-y-1">
+                  <h3 className="font-extrabold text-lg text-white">
+                    {config.hero.featuredTruck?.title || "Kenworth T800 Aerocab"}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {config.hero.featuredTruck?.specs || 'Bomper 20" • Visera Espejo • Doble Corneta'}
+                  </p>
+
+                  <div className="pt-3 flex items-center justify-between">
+                    <Link
+                      to="/galeria/Kenworth-T800-Placa-WTL892"
+                      className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>Ver Ficha 360° en Showroom</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-carbon-900 text-slate-400">
+                      WTL-892
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Estudio Cinemático de Transformaciones "Antes vs Después" Destacado */}
-      <section className="public-section transformacion-section" id="transformacion">
-        <div className="public-container">
-          <div className="section-heading">
-            <span className="subheading-neon">{config.beforeAfter?.subheading || "EL CAMBIO HABLA POR SÍ SOLO"}</span>
-            <h2>{config.beforeAfter?.title || "Estudio Cinemático: Antes vs. Después"}</h2>
-            <p>
+      {/* 3. Sección Estudio de Transformación (Antes vs Después) */}
+      <section id="transformacion" className="py-16 sm:py-24 border-t border-white/5 bg-carbon-900/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-black uppercase tracking-widest text-amber-400">
+              {config.beforeAfter?.subheading || "EL CAMBIO HABLA POR SÍ SOLO"}
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+              {config.beforeAfter?.title || "Estudio Cinemático de Transformaciones"}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
               {config.beforeAfter?.description ||
                 "Explora la transformación artesanal en alta definición: compara el estado de llegada al taller contra la entrega final con acabados en acero inoxidable 304 calidad espejo."}
             </p>
@@ -523,566 +387,318 @@ export default function PublicHome() {
 
           <TransformationShowcase
             config={config}
-            whatsappNumber={cleanWaNumber}
+            whatsappNumber={config.whatsappNumber}
             onOpenQuote={handleOpenQuote}
           />
         </div>
       </section>
 
-      {/* 3.1 Flota de Transformaciones Reales */}
-      <section
-        className="public-section"
-        style={{
-          background: "linear-gradient(180deg, #0b0c0f 0%, #12141a 100%)",
-          padding: "4.5rem 0",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        <div className="public-container">
-          <div className="section-heading">
-            <span className="subheading-neon">PROYECTOS ENTREGADOS EN TALLER</span>
-            <h2>Naves que Ya Dominan las Carreteras</h2>
-            <p>
-              Explora las transformaciones artesanales más imponentes de Colombia: Kenworth, Mack y Peterbilt modificadas con orgullo en Mellos Truck.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
-              gap: "1.8rem",
-              marginTop: "2rem",
-            }}
-          >
-            {/* Kenworth T800 */}
-            <div
-              style={{
-                overflow: "hidden",
-                borderRadius: "16px",
-                border: "1px solid rgba(245, 158, 11, 0.25)",
-                background: "#14161c",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-              }}
-            >
-              <div style={{ position: "relative", height: "200px" }}>
-                <img
-                  src="/images/showroom/kenworth_after.jpg"
-                  alt="Kenworth T800"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "12px",
-                    left: "12px",
-                    background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
-                    color: "#000",
-                    fontWeight: "900",
-                    fontSize: "0.85rem",
-                    letterSpacing: "0.14em",
-                    padding: "0.2rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1.5px solid #000",
-                  }}
-                >
-                  WTL-892
-                </div>
-              </div>
-              <div style={{ padding: "1.4rem" }}>
-                <span style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: "800", textTransform: "uppercase" }}>
-                  KENWORTH • ACERO ESPEJO 304
-                </span>
-                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>
-                  Kenworth T800 Aerocab
-                </h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
-                  Bomper artesanal de 20" con corte láser, visera americana tipo espejo y doble corneta Hadley 24V.
-                </p>
-                <Link
-                  to="/galeria/Kenworth-T800-Placa-WTL892"
-                  className="primary-btn"
-                  style={{ display: "flex", justifyContent: "center", marginTop: "1rem", fontSize: "0.85rem" }}
-                >
-                  ⚡ Ver Showroom 4K
-                </Link>
-              </div>
-            </div>
-
-            {/* Mack Vision Elite */}
-            <div
-              style={{
-                overflow: "hidden",
-                borderRadius: "16px",
-                border: "1px solid rgba(251, 146, 60, 0.25)",
-                background: "#14161c",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-              }}
-            >
-              <div style={{ position: "relative", height: "200px" }}>
-                <img
-                  src="/images/showroom/mack_truck_custom.jpg"
-                  alt="Mack Vision"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "12px",
-                    left: "12px",
-                    background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
-                    color: "#000",
-                    fontWeight: "900",
-                    fontSize: "0.85rem",
-                    letterSpacing: "0.14em",
-                    padding: "0.2rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1.5px solid #000",
-                  }}
-                >
-                  SZZ-514
-                </div>
-              </div>
-              <div style={{ padding: "1.4rem" }}>
-                <span style={{ fontSize: "0.75rem", color: "#fb923c", fontWeight: "800", textTransform: "uppercase" }}>
-                  MACK • ROJO RUBÍ METALIZADO
-                </span>
-                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>
-                  Mack Vision Elite
-                </h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
-                  Tuberías de escape gemelas pulidas, rines con spikes en punta y bomper americano de diseño envolvente.
-                </p>
-                <Link
-                  to="/galeria/Mack-Vision-Placa-SZZ514"
-                  className="primary-btn"
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    marginTop: "1rem",
-                    fontSize: "0.85rem",
-                    background: "linear-gradient(135deg, #fb923c, #ea580c)",
-                    color: "#000",
-                  }}
-                >
-                  ⚡ Ver Showroom 4K
-                </Link>
-              </div>
-            </div>
-
-            {/* Peterbilt 389 */}
-            <div
-              style={{
-                overflow: "hidden",
-                borderRadius: "16px",
-                border: "1px solid rgba(52, 211, 153, 0.25)",
-                background: "#14161c",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-              }}
-            >
-              <div style={{ position: "relative", height: "200px" }}>
-                <img
-                  src="/images/showroom/peterbilt_truck_custom.jpg"
-                  alt="Peterbilt 389"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "12px",
-                    left: "12px",
-                    background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
-                    color: "#000",
-                    fontWeight: "900",
-                    fontSize: "0.85rem",
-                    letterSpacing: "0.14em",
-                    padding: "0.2rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1.5px solid #000",
-                  }}
-                >
-                  UFT-621
-                </div>
-              </div>
-              <div style={{ padding: "1.4rem" }}>
-                <span style={{ fontSize: "0.75rem", color: "#34d399", fontWeight: "800", textTransform: "uppercase" }}>
-                  PETERBILT • VERDE ESMERALDA
-                </span>
-                <h3 style={{ margin: "0.4rem 0 0.6rem 0", fontSize: "1.2rem", color: "#fff", fontWeight: "900" }}>
-                  Peterbilt 389 Pride & Class
-                </h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: "1.4" }}>
-                  Pintura poliuretano de alta resistencia, rines Alcoa pulidos espejo y visera americana en acero inoxidable.
-                </p>
-                <Link
-                  to="/galeria/Kenworth-T800-Placa-WTL892"
-                  className="primary-btn"
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    marginTop: "1rem",
-                    fontSize: "0.85rem",
-                    background: "linear-gradient(135deg, #10b981, #059669)",
-                    color: "#000",
-                  }}
-                >
-                  ⚡ Ver Showroom 4K
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Módulo Showroom & Magic Link Explanation */}
-      <section className="public-section dark-section" id="showroom">
-        <div className="public-container magic-link-feature-grid">
-          <div className="magic-copy">
-            <span className="subheading-neon">TECNOLOGÍA DIFERENCIADORA</span>
-            <h2>El Magic Link: Tu Camión con su Propia Página Web</h2>
-            <p>
-              Cada vez que una tractomula sale de nuestro taller, generamos un <strong>enlace público exclusivo de solo lectura</strong> con su placa y marca.
-            </p>
-            <ul className="magic-perks-list">
-              <li>
-                <span className="perk-icon">⚡</span>
-                <div>
-                  <strong>Slider interactivo de tu vehículo</strong>
-                  <p>Muestra el cambio exacto de tu mula a tus colegas y amigos.</p>
-                </div>
-              </li>
-              <li>
-                <span className="perk-icon">🎬</span>
-                <div>
-                  <strong>Video cinemático en 4K sin pausas</strong>
-                  <p>Tomas aéreas en dron reproducidas al instante gracias a streaming HTTP 206.</p>
-                </div>
-              </li>
-              <li>
-                <span className="perk-icon">💬</span>
-                <div>
-                  <strong>Botón directo de compartir por WhatsApp</strong>
-                  <p>Presume tu nave con un solo clic en tus grupos de camioneros.</p>
-                </div>
-              </li>
-            </ul>
-
-            <Link to="/galeria/Kenworth-T800-Placa-WTL892" className="primary-btn">
-              🔥 Probar Demostración en Vivo
-            </Link>
-          </div>
-
-          <div className="magic-preview-card">
-            <div className="magic-card-header">
-              <span className="window-dot red"></span>
-              <span className="window-dot yellow"></span>
-              <span className="window-dot green"></span>
-              <span className="magic-url-bar">mellostruck.com/galeria/Kenworth-T800-Placa-WTL892</span>
-            </div>
-            <div className="magic-card-body">
-              <img src="/images/showroom/kenworth_after.jpg" alt="Showroom Preview" />
-              <div className="magic-card-info">
-                <h4>Kenworth T800 Aerocab</h4>
-                <p>Placa: WTL-892 • Cliente: Don Carlos Rodríguez</p>
-                <div className="magic-card-tags">
-                  <span>Bomper 20"</span>
-                  <span>Visera Acero</span>
-                  <span>Luces LED</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Catálogo Tienda Container & Accesorios */}
-      <section className="public-section" id="catalogo">
-        <div className="public-container">
-          <div className="section-heading">
-            <span className="subheading-neon">TIENDA CONTAINER & PRODUCTOS</span>
-            <h2>Lujos & Accesorios Listos para Instalar</h2>
-            <p>
-              En nuestro Container encuentras piezas fabricadas con la más alta calidad de acero inoxidable y marcas reconocidas de iluminación pesada.
-            </p>
-          </div>
-
-          <div className="products-showcase-grid">
-            {displayProducts.map((prod, index) => (
-              <div className="product-showcase-card" key={index}>
-                <div className="product-img-wrapper">
-                  <img src={prod.image} alt={prod.title} loading="lazy" decoding="async" />
-                  <span className="product-category-tag">{prod.category}</span>
-                </div>
-                <div className="product-content">
-                  <h3>{prod.title}</h3>
-                  {prod.price && (
-                    <div style={{ color: "#f59e0b", fontWeight: "900", fontSize: "1.1rem", marginBottom: "0.4rem" }}>
-                      ${parseFloat(prod.price).toLocaleString("es-CO")} COP
-                    </div>
-                  )}
-                  <p>{prod.description}</p>
-                  <a
-                    href={`https://wa.me/${cleanWaNumber}?text=Hola%20Mellos%20Truck,%20estoy%20interesado%20en%20el%20producto:%20${encodeURIComponent(
-                      prod.title
-                    )}${prod.price ? `%20(Precio:%20$${parseFloat(prod.price).toLocaleString("es-CO")}%20COP)` : ""}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-product-inquire"
-                  >
-                    💬 Consultar en WhatsApp
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 6. Servicios de Taller Especializado */}
-      <section className="public-section dark-section" id="servicios">
-        <div className="public-container">
-          <div className="section-heading">
-            <span className="subheading-neon">SERVICIOS DE TALLER</span>
-            <h2>Lo que Hacemos para que tu Mula Imponga Respeto</h2>
-            <p>
-              Trabajamos con las marcas más exigentes: Kenworth, Mack, International, Freightliner y Peterbilt.
-            </p>
-          </div>
-
-          <div className="services-grid">
-            {services.map((service, index) => (
-              <article className="service-card" key={index}>
-                <span className="service-badge-pill">{service.badge}</span>
-                <h3>{service.title}</h3>
-                <p>{service.text}</p>
-                <button
-                  type="button"
-                  onClick={() => handleOpenQuote(service.title)}
-                  className="service-card-quote-btn"
-                  style={{
-                    marginTop: "14px",
-                    background: "rgba(245, 158, 11, 0.1)",
-                    border: "1px solid rgba(245, 158, 11, 0.3)",
-                    color: "#fbbf24",
-                    borderRadius: "8px",
-                    padding: "6px 14px",
-                    fontSize: "0.8rem",
-                    fontWeight: "800",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  <span>⚡ Cotizar este trabajo ➔</span>
-                </button>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 7. Cotizador Rápido Directo a WhatsApp */}
-      <section className="public-section accent-section" id="cotizar">
-        <div className="public-container quote-wrapper">
-          <div className="quote-copy">
-            <span className="subheading-neon">COTIZADOR RÁPIDO</span>
-            <h2>¿Listo para Personalizar tu Mula?</h2>
-            <p>
-              Completa los datos de tu vehículo y te respondemos de inmediato con la propuesta técnica y costos por WhatsApp.
-            </p>
-
-            <div className="quote-trust-points">
-              <div className="trust-item">
-                <span className="trust-check">✓</span>
-                <span>Asesoría personalizada por maestros paileros</span>
-              </div>
-              <div className="trust-item">
-                <span className="trust-check">✓</span>
-                <span>Tiempos de entrega claros y garantizados</span>
-              </div>
-              <div className="trust-item">
-                <span className="trust-check">✓</span>
-                <span>Envíos e instalaciones a nivel nacional</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="quote-card">
-            <h3 className="quote-card-title">Solicitar Cotización de Taller</h3>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group-row">
-                <div className="form-field">
-                  <label>Nombre o Empresa *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Ej: Don Carlos / Transportes SAS"
-                    value={form.name}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className="form-field">
-                  <label>Número de WhatsApp *</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Ej: 310 123 4567"
-                    value={form.phone}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group-row">
-                <div className="form-field">
-                  <label>Vehículo / Modelo</label>
-                  <select name="vehicle_type" value={form.vehicle_type} onChange={handleChange}>
-                    <option value="Kenworth T800">Kenworth T800</option>
-                    <option value="Kenworth W900">Kenworth W900</option>
-                    <option value="Kenworth T680">Kenworth T680</option>
-                    <option value="Mack Vision / Anthem">Mack Vision / Anthem</option>
-                    <option value="International Prostar / LT">International Prostar / LT</option>
-                    <option value="Freightliner Cascadia / Coronado">Freightliner Cascadia / Coronado</option>
-                    <option value="Otro Vehículo Pesado">Otro Vehículo Pesado</option>
-                  </select>
-                </div>
-                <div className="form-field">
-                  <label>Placa del Vehículo</label>
-                  <input
-                    type="text"
-                    name="plate"
-                    placeholder="Ej: WTL-892"
-                    value={form.plate}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              <div className="form-field">
-                <label>Servicio o Accesorio Deseado</label>
-                <select name="service" value={form.service} onChange={handleChange}>
-                  <option value="Bomper de Acero Inoxidable (18-22 Pulgadas)">
-                    Bomper de Acero Inoxidable (18-22 Pulgadas)
-                  </option>
-                  <option value="Visera Americana & Juego de Cornetas">
-                    Visera Americana & Juego de Cornetas
-                  </option>
-                  <option value="Transformación Completa (Bomper + Visera + Luces)">
-                    Transformación Completa (Bomper + Visera + Luces)
-                  </option>
-                  <option value="Rines Cromados & Accesorios de Ruedas">
-                    Rines Cromados & Accesorios de Ruedas
-                  </option>
-                  <option value="Latonería, Pintura & Embellecimiento">
-                    Latonería, Pintura & Embellecimiento
-                  </option>
-                  <option value="Repuestos / Lujos Tienda Container">
-                    Repuestos / Lujos Tienda Container
-                  </option>
-                </select>
-              </div>
-
-              <div className="form-field">
-                <label>Detalles o requerimientos especiales</label>
-                <textarea
-                  name="details"
-                  rows="3"
-                  placeholder="¿Algún corte láser, luces LED o diseño específico que tengas en mente?"
-                  value={form.details}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <button className="primary-btn form-submit-btn" type="submit" disabled={loading}>
-                {loading ? "Procesando..." : "⚡ Enviar y Chatear por WhatsApp"}
-              </button>
-
-              {message && <p className="form-message">{message}</p>}
-            </form>
-          </div>
-        </div>
-      </section>
-
-      {/* 8. Footer Pro */}
-      <footer className="public-footer">
-        <div className="public-container footer-grid">
-          <div>
-            <div className="brand-box footer-brand">
-              <div className="brand-logo">MT</div>
-              <h3>MELLOS TRUCK</h3>
-            </div>
-            <p>
-              El taller líder en fabricación de bompers de acero inoxidable, viseras americanas y personalización estética para tractomulas y vehículos de carga pesada.
-            </p>
-            {config.instagramUser && (
-              <p className="footer-ig">
-                Síguenos en Instagram:{" "}
-                <a href={config.instagramUrl || "https://www.instagram.com/mellos_trucks/"} target="_blank" rel="noreferrer">
-                  {config.instagramUser}
-                </a>
+      {/* 4. Sección Tienda Container & Catálogo Físico */}
+      <section id="catalogo" className="py-16 sm:py-24 border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="space-y-2">
+              <span className="text-xs font-black uppercase tracking-widest text-amber-400">
+                Punto de Venta Físico & Distribución
+              </span>
+              <h2 className="text-3xl font-black text-white tracking-tight">
+                Tienda Container de Lujos & Repuestos
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
+                Piezas exclusivas en acero inoxidable, iluminación LED sumergible IP68 y rines forjados disponibles para entrega inmediata o instalación en nuestro patio.
               </p>
-            )}
-          </div>
+            </div>
 
-          <div>
-            <h4>Showroom & Taller</h4>
-            <Link to={config.hero.featuredTruck.magicLink || "/galeria/Kenworth-T800-Placa-WTL892"}>
-              Proyecto Destacado
-            </Link>
-            <a href="#transformacion">Slider Antes y Después</a>
-            <a href="#catalogo">Tienda Container</a>
-            <a href="#servicios">Servicios de Acero</a>
-          </div>
-
-          <div>
-            <h4>Atención & Contacto</h4>
-            <a
-              href={`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(
-                config.whatsappDefaultMsg || "Hola Mellos Truck, quiero más información de servicios"
-              )}`}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              onClick={() => handleOpenQuote("Consulta de Catálogo Container")}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-carbon-900 text-amber-400 border border-amber-500/30 hover:bg-carbon-850 self-start sm:self-auto flex items-center gap-1.5"
             >
-              💬 WhatsApp Ventas Directas
-            </a>
-            <p className="footer-location">📍 {config.locationText || "Medellín & Bogotá, Colombia"}</p>
-            <Link to="/admin/login" className="footer-admin-link">
-              🔐 Acceso Administrativo
-            </Link>
+              <span>Consultar Stock Completo</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {liveProducts.map((prod) => (
+              <div
+                key={prod.id}
+                className="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-amber-500/30 transition-all flex flex-col justify-between group"
+              >
+                <div className="relative h-48 bg-carbon-950 overflow-hidden">
+                  <img
+                    src={prod.imagen_url || "/images/showroom/detail_bumper_chrome.jpg"}
+                    alt={prod.nombre}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded bg-carbon-950/90 backdrop-blur-md text-[10px] font-black uppercase tracking-wider text-amber-400 border border-white/10">
+                    {prod.categoria}
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono text-slate-400 block mb-1">SKU: {prod.sku}</span>
+                    <h3 className="font-extrabold text-sm text-white line-clamp-2 leading-snug">
+                      {prod.nombre}
+                    </h3>
+                  </div>
+
+                  <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] uppercase text-slate-400 font-bold">Precio Taller</div>
+                      <div className="text-base font-extrabold text-amber-400">
+                        ${Number(prod.precio || 0).toLocaleString()}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleOpenQuote(prod.nombre)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-carbon-950 transition-all flex items-center gap-1"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Pedir</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      </section>
 
-        <div className="footer-bottom-bar">
-          <p>© {new Date().getFullYear()} Mellos Truck S.A.S. Todos los derechos reservados.</p>
+      {/* 5. Servicios de Modificación en Taller */}
+      <section id="servicios" className="py-16 sm:py-24 border-t border-white/5 bg-carbon-900/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="text-xs font-black uppercase tracking-widest text-amber-400">
+              Maestría en Acero Inoxidable
+            </span>
+            <h2 className="text-3xl font-black text-white tracking-tight">
+              Especialidades de Taller Mellos Truck
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300">
+              Intervenciones estructurales y estéticas para Kenworth, Mack, Peterbilt e International.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {services.map((srv, idx) => (
+              <div
+                key={idx}
+                className="glass-card p-6 rounded-2xl border border-white/10 space-y-3 flex flex-col justify-between hover:border-amber-500/30 transition-all"
+              >
+                <div className="space-y-3">
+                  <div className="text-3xl">{srv.icon}</div>
+                  <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
+                    {srv.badge}
+                  </span>
+                  <h3 className="font-extrabold text-base text-white">{srv.title}</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">{srv.text}</p>
+                </div>
+
+                <button
+                  onClick={() => handleOpenQuote(srv.title)}
+                  className="pt-2 text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 self-start"
+                >
+                  <span>Cotizar este trabajo</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Formulario de Cotización Directa & Ubicación */}
+      <section id="contacto" className="py-16 sm:py-24 border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+            {/* Info de Taller y WhatsApp */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-widest text-amber-400">
+                  Canal Directo con Maestros
+                </span>
+                <h2 className="text-3xl font-black text-white tracking-tight">
+                  Pide tu Presupuesto sin Compromiso
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  ¿Tienes una mula que necesita bomper, visera o cambio de imagen? Escríbenos directamente o llena el formulario para responderte al instante por WhatsApp.
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div className="glass-card p-4 rounded-xl flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div>
+                    <div className="text-[10px] uppercase text-slate-400 font-bold">Ubicación de Talleres</div>
+                    <div className="text-xs font-bold text-white">{config.locationText}</div>
+                  </div>
+                </div>
+
+                <div className="glass-card p-4 rounded-xl flex items-center gap-3">
+                  <MessageCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <div>
+                    <div className="text-[10px] uppercase text-slate-400 font-bold">Línea Oficial WhatsApp</div>
+                    <div className="text-xs font-bold text-white font-mono">+{cleanWaNumber}</div>
+                  </div>
+                </div>
+
+                <div className="glass-card p-4 rounded-xl flex items-center gap-3">
+                  <Flame className="w-5 h-5 text-orange-400 shrink-0" />
+                  <div>
+                    <div className="text-[10px] uppercase text-slate-400 font-bold">Instagram Oficial</div>
+                    <a
+                      href={config.instagramUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-bold text-amber-400 hover:underline"
+                    >
+                      {config.instagramUser}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Formulario en Tarjeta Glass */}
+            <div className="lg:col-span-7">
+              <div className="glass-card p-6 sm:p-8 rounded-3xl border border-white/15 shadow-2xl space-y-5">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Solicitar Cotización de Taller</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Tus datos quedan guardados y abrimos WhatsApp con la ficha lista.
+                  </p>
+                </div>
+
+                <form onSubmit={handleDirectQuoteSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Tu Nombre *</label>
+                      <input
+                        type="text"
+                        required
+                        value={quoteForm.client_name}
+                        onChange={(e) => setQuoteForm({ ...quoteForm, client_name: e.target.value })}
+                        placeholder="Don Carlos Rodríguez"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Teléfono WhatsApp *</label>
+                      <input
+                        type="text"
+                        required
+                        value={quoteForm.phone}
+                        onChange={(e) => setQuoteForm({ ...quoteForm, phone: e.target.value })}
+                        placeholder="3104567890"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Mula / Marca</label>
+                      <input
+                        type="text"
+                        value={quoteForm.vehicle_type}
+                        onChange={(e) => setQuoteForm({ ...quoteForm, vehicle_type: e.target.value })}
+                        placeholder="Kenworth T800"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Placa</label>
+                      <input
+                        type="text"
+                        value={quoteForm.plate}
+                        onChange={(e) => setQuoteForm({ ...quoteForm, plate: e.target.value.toUpperCase() })}
+                        placeholder="WTL-892"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white uppercase font-mono focus:outline-none focus:border-amber-500/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Ciudad</label>
+                      <input
+                        type="text"
+                        value={quoteForm.city}
+                        onChange={(e) => setQuoteForm({ ...quoteForm, city: e.target.value })}
+                        placeholder="Medellín"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Trabajo Deseado</label>
+                    <input
+                      type="text"
+                      value={quoteForm.service}
+                      onChange={(e) => setQuoteForm({ ...quoteForm, service: e.target.value })}
+                      placeholder='Bomper de 20", Visera Drop Visor, Doble Corneta...'
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Detalles Adicionales</label>
+                    <textarea
+                      rows="2"
+                      value={quoteForm.details}
+                      onChange={(e) => setQuoteForm({ ...quoteForm, details: e.target.value })}
+                      placeholder="Especificaciones o consultas de personalización..."
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    ></textarea>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submittingQuote}
+                    className="w-full py-3.5 rounded-2xl font-black text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-carbon-950 shadow-xl shadow-amber-500/25 hover:brightness-110 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{submittingQuote ? "Guardando..." : "Enviar Cotización & Conectar por WhatsApp"}</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. Footer */}
+      <footer className="border-t border-white/10 bg-carbon-950 py-12 text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-black text-carbon-950 text-xs">
+              MT
+            </div>
+            <span className="font-extrabold text-sm text-white">
+              MELLOS TRUCK S.A.S. • © {new Date().getFullYear()}
+            </span>
+          </div>
+
+          <p className="text-center sm:text-right">
+            Líderes en fabricación de bompers y lujos en acero inoxidable para carga pesada.
+          </p>
+
+          <div>
+            <Link
+              to="/admin/login"
+              className="px-3 py-1.5 rounded-lg bg-carbon-900 text-slate-400 hover:text-amber-400 border border-white/5 transition-colors font-bold"
+            >
+              🔐 Acceso Gerencia
+            </Link>
+          </div>
         </div>
       </footer>
 
-      {/* 9. Botón Flotante de WhatsApp */}
-      <a
-        className="floating-whatsapp"
-        href={`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(
-          "¡Hola Mellos Truck! 🚛 Quiero cotizar la personalización de mi camión."
-        )}`}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Contactar por WhatsApp"
-      >
-        <span style={{ fontSize: "1.25rem" }}>💬</span>
-        <span className="wa-text">Cotizar en WhatsApp</span>
-      </a>
-
-      {/* 10. Modal Cinemático de Cotización Express */}
+      {/* Modal de Cotización Rápida Flotante */}
       <QuickQuoteModal
-        isOpen={quoteModalOpen}
-        onClose={() => setQuoteModalOpen(false)}
-        whatsappNumber={cleanWaNumber}
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
         initialService={quoteInitialService}
-        initialVehicle={quoteInitialVehicle}
       />
     </div>
   );

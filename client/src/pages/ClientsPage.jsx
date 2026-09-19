@@ -1,19 +1,24 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { showSuccessToast, showErrorToast, showConfirmAlert } from "../utils/alerts";
-
-const API_BASE = "http://localhost:4000/api";
+import { clientsService } from "../services/firebaseService.js";
+import { showSuccessToast, showErrorToast } from "../utils/alerts";
+import {
+  Users,
+  Plus,
+  Search,
+  MessageCircle,
+  Phone,
+  Building,
+  MapPin,
+  X,
+  FileText,
+  Truck,
+} from "lucide-react";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([]);
-  const [metrics, setMetrics] = useState({
-    total_clients: 0,
-    total_spent_accumulated: 0,
-    total_trucks_registered: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedCity, setSelectedCity] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
 
@@ -21,28 +26,18 @@ export default function ClientsPage() {
     name: "",
     phone: "",
     whatsapp: "",
-    city: "Bogotá D.C.",
+    city: "Medellín",
     company: "",
-    documento: "",
     notes: "",
   });
 
   const loadClients = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
-      const res = await fetch(`${API_BASE}/clients`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.clients)) {
-        setClients(data.clients);
-        if (data.metrics) setMetrics(data.metrics);
-      } else if (Array.isArray(data)) {
-        setClients(data);
-      }
+      const list = await clientsService.getAll(search);
+      setClients(Array.isArray(list) ? list : []);
     } catch (err) {
-      console.warn("Error cargando clientes del CRM:", err);
+      console.warn("Error cargando clientes:", err);
     } finally {
       setLoading(false);
     }
@@ -50,43 +45,40 @@ export default function ClientsPage() {
 
   useEffect(() => {
     loadClients();
-  }, []);
+  }, [search]);
 
-  const cities = useMemo(() => {
-    const list = clients.map((c) => c.city).filter(Boolean);
-    return ["all", ...new Set(list)];
-  }, [clients]);
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.phone) {
+      showErrorToast("Nombre y teléfono son obligatorios");
+      return;
+    }
 
-  const filteredClients = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return clients.filter((client) => {
-      const inCity = selectedCity === "all" || (client.city || "").toLowerCase() === selectedCity.toLowerCase();
-      if (!inCity) return false;
-
-      if (!term) return true;
-
-      const inName = (client.name || "").toLowerCase().includes(term);
-      const inPhone = (client.phone || "").toLowerCase().includes(term);
-      const inCompany = (client.company || "").toLowerCase().includes(term);
-      const inPlates = (client.plates || []).some((p) => p.toLowerCase().includes(term));
-      const inNotes = (client.notes || "").toLowerCase().includes(term);
-
-      return inName || inPhone || inCompany || inPlates || inNotes;
-    });
-  }, [clients, search, selectedCity]);
-
-  const handleOpenCreate = () => {
-    setEditingClient(null);
-    setForm({
-      name: "",
-      phone: "",
-      whatsapp: "",
-      city: "Bogotá D.C.",
-      company: "",
-      documento: "",
-      notes: "",
-    });
-    setShowModal(true);
+    try {
+      if (editingClient) {
+        await clientsService.update(editingClient.id, form);
+        showSuccessToast("Cliente actualizado con éxito");
+      } else {
+        await clientsService.create({
+          ...form,
+          whatsapp: form.whatsapp || form.phone,
+        });
+        showSuccessToast("Cliente registrado en Firebase");
+      }
+      setShowModal(false);
+      setEditingClient(null);
+      setForm({
+        name: "",
+        phone: "",
+        whatsapp: "",
+        city: "Medellín",
+        company: "",
+        notes: "",
+      });
+      await loadClients();
+    } catch (err) {
+      showErrorToast("Error guardando cliente");
+    }
   };
 
   const handleOpenEdit = (client) => {
@@ -94,367 +86,134 @@ export default function ClientsPage() {
     setForm({
       name: client.name || "",
       phone: client.phone || "",
-      whatsapp: client.whatsapp || "",
-      city: client.city || "Bogotá D.C.",
+      whatsapp: client.whatsapp || client.phone || "",
+      city: client.city || "Medellín",
       company: client.company || "",
-      documento: client.documento || "",
       notes: client.notes || "",
     });
     setShowModal(true);
   };
 
-  const handleSaveClient = async (e) => {
-    e.preventDefault();
-    if (!form.name || !form.phone) {
-      showErrorToast("Ingresa nombre y teléfono de contacto");
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
-      const url = editingClient ? `${API_BASE}/clients/${editingClient.id}` : `${API_BASE}/clients`;
-      const method = editingClient ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        showSuccessToast(editingClient ? "Cliente actualizado" : "Cliente registrado en el CRM");
-        setShowModal(false);
-        loadClients();
-      } else {
-        showErrorToast(data.message || "Error al procesar cliente");
-      }
-    } catch (err) {
-      showErrorToast("Error al conectar con el servidor");
-    }
-  };
-
-  const handleDeleteClient = async (client) => {
-    const confirmed = await showConfirmAlert({
-      title: `¿Retirar a ${client.name}?`,
-      text: "El cliente será eliminado del directorio CRM. No se borrarán sus órdenes de taller pasadas.",
-      confirmButtonText: "Sí, retirar",
-      danger: true,
-    });
-
-    if (confirmed) {
-      try {
-        const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
-        const res = await fetch(`${API_BASE}/clients/${client.id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          showSuccessToast("Cliente retirado correctamente");
-          loadClients();
-        } else {
-          showErrorToast("Error al retirar cliente");
-        }
-      } catch (err) {
-        showErrorToast("Error de conexión");
-      }
-    }
-  };
-
-  const openWhatsApp = (client) => {
-    const raw = (client.whatsapp || client.phone || "").replace(/\D/g, "");
-    const phone = raw.startsWith("57") ? raw : `57${raw}`;
-    const text = encodeURIComponent(`Hola Don ${client.name}, le saludamos desde Mellos Truck Taller & Container. ¿En qué podemos servirle hoy con sus mulas?`);
-    window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
-  };
-
   return (
-    <div style={{ color: "#f8fafc", padding: "1.2rem 1.6rem", display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-      {/* 1. Header del CRM */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. Header de Clientes */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "1.8rem" }}>👥</span>
-            <h1 style={{ fontSize: "1.6rem", fontWeight: "900", color: "#f8fafc", margin: 0, letterSpacing: "0.02em" }}>
-              CRM Transportador & Directorio de Flotas
-            </h1>
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">
+            <Users className="w-4 h-4" />
+            <span>Directorio de Transportadores & Flotas</span>
           </div>
-          <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "0.85rem" }}>
-            Historial consolidado de transportadores, mulas atendidas, inversión acumulada y contacto directo.
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Gestión de Clientes
+          </h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Base de datos de transportadores y empresas sincronizada en Cloud Firestore.
           </p>
         </div>
 
         <button
-          onClick={handleOpenCreate}
-          style={{
-            padding: "0.65rem 1.3rem",
-            background: "linear-gradient(135deg, #f59e0b, #ea580c)",
-            color: "#000",
-            fontWeight: "900",
-            fontSize: "0.85rem",
-            border: "none",
-            borderRadius: "10px",
-            cursor: "pointer",
-            boxShadow: "0 4px 15px rgba(245, 158, 11, 0.4)",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.4rem",
+          onClick={() => {
+            setEditingClient(null);
+            setForm({
+              name: "",
+              phone: "",
+              whatsapp: "",
+              city: "Medellín",
+              company: "",
+              notes: "",
+            });
+            setShowModal(true);
           }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all self-start sm:self-auto"
         >
-          <span>➕</span>
-          <span>Registrar Nuevo Cliente</span>
+          <Plus className="w-4 h-4" />
+          <span>+ Nuevo Cliente</span>
         </button>
       </div>
 
-      {/* 2. Banner de Métricas del CRM */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-        <div style={{ background: "rgba(24, 26, 34, 0.8)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase" }}>
-            Transportadores Registrados
-          </div>
-          <div style={{ fontSize: "1.8rem", fontWeight: "900", color: "#f59e0b", marginTop: "4px" }}>
-            {metrics.total_clients || clients.length}
-          </div>
-          <div style={{ fontSize: "0.72rem", color: "#64748b", marginTop: "2px" }}>Clientes y empresas de carga</div>
-        </div>
-
-        <div style={{ background: "rgba(24, 26, 34, 0.8)", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase" }}>
-            Flota de Mulas Atendidas
-          </div>
-          <div style={{ fontSize: "1.8rem", fontWeight: "900", color: "#38bdf8", marginTop: "4px" }}>
-            {metrics.total_trucks_registered || 6}
-          </div>
-          <div style={{ fontSize: "0.72rem", color: "#64748b", marginTop: "2px" }}>Tractomulas con trazabilidad</div>
-        </div>
-
-        <div style={{ background: "rgba(24, 26, 34, 0.8)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: "12px", padding: "1.1rem" }}>
-          <div style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase" }}>
-            Facturación Total Acumulada
-          </div>
-          <div style={{ fontSize: "1.8rem", fontWeight: "900", color: "#34d399", marginTop: "4px" }}>
-            ${(metrics.total_spent_accumulated || 28540000).toLocaleString("es-CO")} COP
-          </div>
-          <div style={{ fontSize: "0.72rem", color: "#64748b", marginTop: "2px" }}>Mano de obra + Container</div>
-        </div>
+      {/* 2. Barra de Búsqueda */}
+      <div className="relative max-w-md">
+        <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar transportador por nombre, teléfono o empresa..."
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+        />
       </div>
 
-      {/* 3. Barra de Búsqueda & Filtros de Ciudad */}
-      <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ flex: 1, minWidth: "260px", position: "relative" }}>
-          <input
-            type="text"
-            placeholder="Buscar por transportador, placa (ej: WTL-892), empresa o ciudad..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "0.7rem 1rem 0.7rem 2.4rem",
-              borderRadius: "10px",
-              background: "#181a22",
-              border: "1px solid rgba(255,255,255,0.12)",
-              color: "#fff",
-              fontSize: "0.85rem",
-              outline: "none",
-            }}
-          />
-          <span style={{ position: "absolute", left: "0.85rem", top: "0.75rem", color: "#64748b" }}>🔍</span>
-        </div>
-
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {cities.map((city) => (
-            <button
-              key={city}
-              type="button"
-              onClick={() => setSelectedCity(city)}
-              style={{
-                padding: "0.5rem 0.85rem",
-                borderRadius: "8px",
-                border: selectedCity === city ? "1px solid #f59e0b" : "1px solid rgba(255,255,255,0.08)",
-                background: selectedCity === city ? "rgba(245, 158, 11, 0.15)" : "rgba(255,255,255,0.03)",
-                color: selectedCity === city ? "#f59e0b" : "#94a3b8",
-                fontWeight: "700",
-                fontSize: "0.75rem",
-                cursor: "pointer",
-              }}
-            >
-              {city === "all" ? "Todas las ciudades" : city}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 4. Listado de Clientes en Tarjetas Ejecutivas */}
+      {/* 3. Grid de Clientes */}
       {loading ? (
-        <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>
-          Cargando directorio de transportadores...
+        <div className="py-20 text-center text-slate-500">
+          <div className="inline-block w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p className="text-xs">Cargando clientes desde Firebase...</p>
         </div>
-      ) : filteredClients.length === 0 ? (
-        <div style={{ padding: "3rem", textAlign: "center", background: "#161820", borderRadius: "12px", color: "#94a3b8" }}>
-          No se encontraron transportadores con el criterio "{search}".
+      ) : clients.length === 0 ? (
+        <div className="glass-card p-12 rounded-2xl text-center space-y-3">
+          <Users className="w-12 h-12 text-slate-600 mx-auto" />
+          <h3 className="text-base font-bold text-white">No hay clientes registrados</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Registra a los transportadores para asociarlos a sus mulas y cotizaciones.
+          </p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "1.2rem" }}>
-          {filteredClients.map((client) => {
-            const hasPlates = (client.plates || []).length > 0;
-            const spent = client.total_spent || 0;
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {clients.map((c) => {
+            const cleanPhone = (c.whatsapp || c.phone || "").replace(/\D/g, "");
+            const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
+              `¡Hola ${c.name}! Te saludamos de Mellos Truck.`
+            )}`;
 
             return (
               <div
-                key={client.id}
-                style={{
-                  background: "linear-gradient(145deg, #181a24, #13151c)",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  borderRadius: "14px",
-                  padding: "1.2rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.9rem",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                  transition: "all 0.2s ease",
-                }}
+                key={c.id}
+                className="glass-card p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:border-amber-500/30 transition-all"
               >
-                {/* Cabecera Tarjeta: Nombre + Ciudad */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "900", color: "#f8fafc" }}>
-                      {client.name}
-                    </h3>
-                    <div style={{ fontSize: "0.78rem", color: "#f59e0b", fontWeight: "700", marginTop: "2px" }}>
-                      🏢 {client.company || "Transportador Independiente"}
-                    </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-carbon-950 border border-white/10 text-amber-400">
+                      {c.city || "Colombia"}
+                    </span>
+                    <button
+                      onClick={() => handleOpenEdit(c)}
+                      className="text-xs text-slate-400 hover:text-amber-400 font-bold"
+                    >
+                      Editar
+                    </button>
                   </div>
 
-                  <div
-                    style={{
-                      background: "rgba(56, 189, 248, 0.12)",
-                      border: "1px solid rgba(56, 189, 248, 0.3)",
-                      color: "#38bdf8",
-                      fontSize: "0.7rem",
-                      fontWeight: "800",
-                      padding: "0.25rem 0.6rem",
-                      borderRadius: "6px",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    📍 {client.city || "Colombia"}
-                  </div>
-                </div>
+                  <h3 className="font-extrabold text-base text-white">{c.name}</h3>
 
-                {/* Documento y Teléfono */}
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "#94a3b8" }}>
-                  <div>
-                    NIT / C.C: <strong style={{ color: "#e2e8f0" }}>{client.documento || "No registrado"}</strong>
-                  </div>
-                  <div>
-                    📞 <strong style={{ color: "#e2e8f0" }}>{client.phone}</strong>
-                  </div>
-                </div>
+                  {c.company && (
+                    <div className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <Building className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{c.company}</span>
+                    </div>
+                  )}
 
-                {/* Flota de Mulas del Cliente */}
-                <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "8px", padding: "0.7rem", border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase", marginBottom: "0.4rem" }}>
-                    Tractomulas Registradas ({client.plates?.length || 0})
-                  </div>
-                  {hasPlates ? (
-                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                      {client.plates.map((placa) => (
-                        <div
-                          key={placa}
-                          style={{
-                            background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
-                            color: "#000",
-                            fontWeight: "900",
-                            fontSize: "0.75rem",
-                            padding: "0.15rem 0.5rem",
-                            borderRadius: "4px",
-                            border: "1px solid #000",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                          }}
-                        >
-                          <span>🚛</span>
-                          <span>{placa}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: "0.75rem", color: "#64748b", fontStyle: "italic" }}>
-                      Sin órdenes de taller vinculadas aún.
-                    </div>
+                  {c.notes && (
+                    <p className="text-xs text-slate-400 italic bg-carbon-950/60 p-2.5 rounded-xl border border-white/5">
+                      "{c.notes}"
+                    </p>
                   )}
                 </div>
 
-                {/* Inversión Acumulada */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "0.6rem" }}>
-                  <div>
-                    <div style={{ fontSize: "0.68rem", color: "#64748b", fontWeight: "700" }}>FACTURACIÓN TOTAL EN TALLER:</div>
-                    <div style={{ fontSize: "1.05rem", fontWeight: "900", color: spent > 0 ? "#34d399" : "#94a3b8" }}>
-                      ${spent.toLocaleString("es-CO")} COP
-                    </div>
-                  </div>
+                <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                  <span className="text-xs text-slate-300 font-mono flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-slate-500" />
+                    {c.phone}
+                  </span>
 
-                  <button
-                    type="button"
-                    onClick={() => openWhatsApp(client)}
-                    style={{
-                      padding: "0.45rem 0.85rem",
-                      background: "rgba(34, 197, 94, 0.15)",
-                      border: "1px solid rgba(34, 197, 94, 0.4)",
-                      color: "#4ade80",
-                      borderRadius: "8px",
-                      fontWeight: "800",
-                      fontSize: "0.75rem",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-carbon-950 transition-all flex items-center gap-1.5"
                   >
-                    <span>💬</span>
+                    <MessageCircle className="w-3.5 h-3.5" />
                     <span>WhatsApp</span>
-                  </button>
-                </div>
-
-                {/* Acciones de Edición */}
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "0.5rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(client)}
-                    style={{
-                      padding: "0.35rem 0.65rem",
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      color: "#cbd5e1",
-                      borderRadius: "6px",
-                      fontSize: "0.72rem",
-                      fontWeight: "700",
-                      cursor: "pointer",
-                    }}
-                  >
-                    ✏️ Editar
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteClient(client)}
-                    style={{
-                      padding: "0.35rem 0.65rem",
-                      background: "rgba(239, 68, 68, 0.08)",
-                      border: "1px solid rgba(239, 68, 68, 0.25)",
-                      color: "#f87171",
-                      borderRadius: "6px",
-                      fontSize: "0.72rem",
-                      fontWeight: "700",
-                      cursor: "pointer",
-                    }}
-                  >
-                    🗑️ Retirar
-                  </button>
+                  </a>
                 </div>
               </div>
             );
@@ -462,208 +221,97 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* 5. Modal Crear / Editar Cliente */}
+      {/* Modal para Crear / Editar Cliente */}
       {showModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(12px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10000,
-            padding: "1rem",
-          }}
-        >
-          <div
-            style={{
-              background: "#161822",
-              border: "1px solid rgba(245, 158, 11, 0.35)",
-              borderRadius: "16px",
-              padding: "1.8rem",
-              width: "100%",
-              maxWidth: "520px",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.85)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem" }}>
-              <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: "900", color: "#f59e0b" }}>
-                {editingClient ? `Editar Cliente: ${editingClient.name}` : "Registrar Nuevo Cliente en CRM"}
-              </h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-card max-w-md w-full rounded-2xl p-6 space-y-4 border border-white/15">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">
+                  {editingClient ? "Editar Transportador" : "Registrar Nuevo Cliente"}
+                </h3>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "1.2rem", cursor: "pointer" }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-carbon-800"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveClient} style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.9rem" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                    Nombre del Transportador *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: Don Carlos Rodríguez"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "8px",
-                      background: "#0c0e12",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                    Teléfono Celular / WhatsApp *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="3104567890"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "8px",
-                      background: "#0c0e12",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.9rem" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                    Empresa o Flota
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Transportes El Sol S.A.S."
-                    value={form.company}
-                    onChange={(e) => setForm({ ...form, company: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "8px",
-                      background: "#0c0e12",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                    Ciudad de Operación
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Bogotá D.C., Medellín, Cali..."
-                    value={form.city}
-                    onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "8px",
-                      background: "#0c0e12",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      color: "#fff",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
-              </div>
-
+            <form onSubmit={handleSave} className="space-y-3">
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                  NIT o Cédula de Ciudadanía
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre Completo *</label>
                 <input
                   type="text"
-                  placeholder="80.124.590"
-                  value={form.documento}
-                  onChange={(e) => setForm({ ...form, documento: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "0.6rem",
-                    borderRadius: "8px",
-                    background: "#0c0e12",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    fontSize: "0.85rem",
-                  }}
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Don Carlos Rodríguez"
+                  className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Teléfono Principal *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="573104567890"
+                    className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Ciudad</label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    placeholder="Medellín"
+                    className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Empresa de Transportes (Opcional)</label>
+                <input
+                  type="text"
+                  value={form.company}
+                  onChange={(e) => setForm({ ...form, company: e.target.value })}
+                  placeholder="Transportes El Cóndor S.A.S."
+                  className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                  Notas & Preferencias de Taller
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Notas / Flota de Mulas</label>
                 <textarea
-                  rows="3"
-                  placeholder="Gusto por acero inoxidable, rines pulidos, horarios de entrega..."
+                  rows="2"
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "0.6rem",
-                    borderRadius: "8px",
-                    background: "#0c0e12",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    fontSize: "0.85rem",
-                    resize: "none",
-                  }}
-                />
+                  placeholder="Dueño de 3 tractomulas Kenworth T800, cliente recurrente..."
+                  className="w-full px-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                ></textarea>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.8rem", marginTop: "0.5rem" }}>
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{
-                    padding: "0.6rem 1.1rem",
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#94a3b8",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    fontSize: "0.82rem",
-                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-carbon-800 text-slate-300 hover:bg-carbon-700"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  style={{
-                    padding: "0.6rem 1.4rem",
-                    background: "linear-gradient(135deg, #f59e0b, #ea580c)",
-                    color: "#000",
-                    border: "none",
-                    borderRadius: "8px",
-                    fontWeight: "900",
-                    cursor: "pointer",
-                    fontSize: "0.82rem",
-                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110"
                 >
-                  {editingClient ? "Guardar Cambios" : "Confirmar Registro"}
+                  Guardar Cliente
                 </button>
               </div>
             </form>

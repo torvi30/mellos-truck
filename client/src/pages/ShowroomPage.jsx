@@ -2,93 +2,43 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import BeforeAfterSlider from "../components/BeforeAfterSlider";
 import QuickQuoteModal from "../components/QuickQuoteModal";
+import { showroomService } from "../services/firebaseService.js";
+import {
+  Sparkles,
+  Share2,
+  Copy,
+  Check,
+  MessageCircle,
+  Truck,
+  ShieldCheck,
+  Clock,
+  ArrowLeft,
+  ChevronRight,
+} from "lucide-react";
 
 export default function ShowroomPage() {
   const { slug } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("slider"); // 'slider' | 'video' | 'gallery'
   const [copied, setCopied] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
 
   useEffect(() => {
     const fetchShowroomData = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:4000/api/showroom/${slug || "default"}`);
-        if (res.ok) {
-          const json = await res.json();
-          setData(json);
-        } else {
-          // Si el backend no está corriendo en 4000 o dio 404, usamos datos de demostración
-          throw new Error("No se pudo conectar a la API");
-        }
+        const res = await showroomService.getBySlug(slug);
+        setData(res);
       } catch (err) {
-        console.warn("Utilizando datos de demostración cinematográfica:", err);
-        setData({
-          workOrder: {
-            id: 101,
-            clientName: "Don Carlos Rodríguez",
-            plate: "WTL-892",
-            brand: "Kenworth",
-            line: "T800 Aerocab",
-            model: "2024",
-            color: "Azul Medianoche & Cromo Espejo",
-            description:
-              "Transformación total: Fabricación de bomper de acero inoxidable cromado de 20 pulgadas con cortes láser y luces LED integradas, visera americana de acero, doble corneta de aire Hadley, estribos pulidos tipo espejo, iluminación perimetral ámbar y pulido cerámico de cabina.",
-            status: "Entregado",
-            date: new Date().toISOString(),
-            slug: slug || "Kenworth-T800-Placa-WTL892",
-          },
-          showcase: {
-            beforeAfter: [
-              {
-                id: 1,
-                title: "Frontal & Cabina: Bomper de Acero de 20\", Visera y Cornetas",
-                before_url: "/images/showroom/kenworth_before.jpg",
-                after_url: "/images/showroom/kenworth_after.jpg",
-              },
-            ],
-            cinematicVideo: {
-              title: "Tomas Aéreas Dron DJI - Kenworth T800",
-              url: "http://localhost:4000/api/stream/video/cinematic_kenworth_demo.mp4",
-              thumbnail_url: "/images/showroom/kenworth_after.jpg",
-            },
-            photos: [
-              {
-                id: 1,
-                title: "Bomper de Acero Inoxidable de 20\" con Luces LED Embebidas & Soldadura TIG",
-                url: "/images/showroom/detail_bumper_chrome.jpg",
-              },
-              {
-                id: 2,
-                title: "Visera Americana en Acero Espejo & Doble Corneta Hadley",
-                url: "/images/showroom/detail_visera_cornetas.jpg",
-              },
-              {
-                id: 3,
-                title: "Rines Pulidos Alcoa, Spikes en Punta & Luces Ámbar de Bajo Chasis",
-                url: "/images/showroom/detail_rines_spikes.jpg",
-              },
-            ],
-          },
-          sharing: {
-            whatsappShareUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(
-              `¡Mira la transformación de mi nave en Mellos Truck! 🔥🚛\n👉 ${window.location.href}`
-            )}`,
-            directUrl: window.location.href,
-          },
-        });
+        console.warn("Error cargando showroom:", err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchShowroomData();
   }, [slug]);
 
-  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
-
-  const handleCopyLink = () => {
+  const handleCopy = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
@@ -96,214 +46,215 @@ export default function ShowroomPage() {
 
   if (loading) {
     return (
-      <div className="showroom-loading-screen">
-        <div className="showroom-spinner"></div>
-        <p>CARGANDO SHOWROOM CINEMATOGRÁFICO...</p>
+      <div className="min-h-screen bg-carbon-950 flex flex-col items-center justify-center p-4">
+        <div className="w-12 h-12 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+          Cargando Showroom Cinematográfico 4K...
+        </p>
       </div>
     );
   }
 
-  const { workOrder, showcase } = data || {};
-  const currentBeforeAfter = showcase?.beforeAfter?.[0];
-  const vehicleFullName = `${workOrder?.brand || "Kenworth"} ${workOrder?.line || "T800"}`.trim();
+  const { workOrder, showcase, sharing } = data || {};
 
   return (
-    <div className="showroom-page">
-      {/* 1. Header Minimalista & Marca Ultra-Pro */}
-      <header className="showroom-nav">
-        <div className="showroom-nav-inner">
-          <div className="showroom-nav-left">
-            <Link to="/" className="showroom-brand">
-              <span className="brand-badge">MT</span>
-              <div className="brand-titles">
-                <span className="brand-text">MELLOS TRUCK</span>
-                <span className="brand-sub">STUDIO 4K</span>
-              </div>
-            </Link>
-            <Link to="/" className="showroom-back-link">
-              <span>←</span>
-              <span>Volver a Portada</span>
-            </Link>
+    <div className="min-h-screen bg-carbon-950 text-slate-100 selection:bg-amber-500 selection:text-carbon-950">
+      {/* 1. Header Fijo / Barra Superior Glassmorphic */}
+      <header className="sticky top-0 z-50 bg-carbon-950/85 backdrop-blur-md border-b border-white/10 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Inicio</span>
+          </Link>
+          <span className="text-slate-600 hidden sm:inline">/</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-black text-carbon-950 text-xs">
+              MT
+            </div>
+            <span className="font-extrabold text-sm text-white tracking-wider">
+              MELLOS <span className="text-amber-400">TRUCK</span>
+            </span>
           </div>
+        </div>
 
-          <div className="showroom-header-actions">
-            <button onClick={handleCopyLink} className="btn-secondary-dark" title="Copiar enlace para compartir">
-              {copied ? "✓ ¡Enlace copiado!" : "🔗 Copiar Magic Link"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuoteModalOpen(true)}
-              className="btn-showroom-quote-neon"
-              title="Cotizar una transformación similar"
-            >
-              <span>⚡ Cotizar Esta Nave</span>
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopy}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+              copied
+                ? "bg-emerald-500 text-carbon-950 border-emerald-400"
+                : "bg-carbon-900 text-slate-200 border-white/10 hover:bg-carbon-850"
+            }`}
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{copied ? "¡Copiado!" : "Copiar Enlace"}</span>
+          </button>
+
+          <a
+            href={sharing?.whatsappShareUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-carbon-950 shadow-md shadow-emerald-500/20 hover:brightness-110 transition-all flex items-center gap-1.5"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span>Compartir WhatsApp</span>
+          </a>
         </div>
       </header>
 
-      {/* 2. Hero Cinematográfico con Ficha del Vehículo */}
-      <section className="showroom-hero">
-        <div className="showroom-hero-meta">
-          <div className="meta-badge-status">
-            <span className="status-dot"></span> {workOrder?.status || "PROYECTO TERMINADO"}
+      {/* 2. Cuerpo Central del Showroom */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-12">
+        {/* Encabezado del Vehículo */}
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-black uppercase tracking-widest">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Showroom Oficial Mellos Truck</span>
           </div>
-          <h1 className="showroom-title">
+
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
             {workOrder?.brand} {workOrder?.line}
           </h1>
-          <div className="showroom-plate-badge">
-            <span className="plate-flag">🇨🇴</span>
-            <span className="plate-code">{workOrder?.plate || "WTL-892"}</span>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+            <span className="font-mono font-black text-sm sm:text-base px-3 py-1 rounded-lg bg-carbon-900 border border-white/15 text-amber-400 shadow-md">
+              PLACA: {workOrder?.plate}
+            </span>
+            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-carbon-900 text-slate-300 border border-white/10">
+              Transportador: <strong className="text-white">{workOrder?.clientName}</strong>
+            </span>
+            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+              Estado: {workOrder?.status || "Entregado"}
+            </span>
           </div>
-          <p className="showroom-owner">
-            Propietario / Cliente: <strong>{workOrder?.clientName}</strong>
+
+          <p className="text-sm sm:text-base text-slate-400 pt-2 leading-relaxed">
+            {workOrder?.description}
           </p>
         </div>
 
-        {/* Pestañas de Navegación del Showroom */}
-        <div className="showroom-tabs">
-          <button
-            className={`showroom-tab-btn ${activeTab === "slider" ? "active" : ""}`}
-            onClick={() => setActiveTab("slider")}
-          >
-            ⚡ Antes y Después (Interactivo)
-          </button>
-          <button
-            className={`showroom-tab-btn ${activeTab === "video" ? "active" : ""}`}
-            onClick={() => setActiveTab("video")}
-          >
-            🎬 Video Cinematográfico (4K Stream)
-          </button>
-          <button
-            className={`showroom-tab-btn ${activeTab === "gallery" ? "active" : ""}`}
-            onClick={() => setActiveTab("gallery")}
-          >
-            📸 Detalles de Acero & Cromo ({showcase?.photos?.length || 0})
-          </button>
+        {/* 3. Visor Interactivo de Antes vs Después */}
+        <div className="glass-card rounded-3xl p-3 sm:p-5 border border-white/15 shadow-2xl">
+          <div className="mb-4 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                Transformación Frontal & Cabina
+              </span>
+              <h2 className="text-lg sm:text-xl font-extrabold text-white">
+                Desliza la barra para comparar el cambio artesanal
+              </h2>
+            </div>
+            <span className="text-xs text-slate-400">Acero 304 Grado Espejo</span>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden border border-white/10">
+            <BeforeAfterSlider
+              beforeImage={showcase?.beforeAfter[0]?.before_url || "/images/showroom/kenworth_before.jpg"}
+              afterImage={showcase?.beforeAfter[0]?.after_url || "/images/showroom/kenworth_after.jpg"}
+              aspectRatio="16/9"
+            />
+          </div>
         </div>
 
-        {/* 3. Contenedor Principal de Medios Fluidos */}
-        <div className="showroom-media-wrapper">
-          {activeTab === "slider" && currentBeforeAfter && (
-            <div className="showroom-slider-section">
-              <BeforeAfterSlider
-                beforeImage={currentBeforeAfter.before_url}
-                afterImage={currentBeforeAfter.after_url}
-                beforeLabel="ANTES (Llegada al taller)"
-                afterLabel="DESPUÉS (Obra Mellos Truck)"
-                aspectRatio="16/9"
-              />
-              <div className="slider-caption">
-                <p className="caption-title">{currentBeforeAfter.title}</p>
-                <p className="caption-instruction">
-                  ↔️ Arrastra o toca la línea amarilla neón para deslizar la comparativa sin lag.
-                </p>
-              </div>
-            </div>
-          )}
+        {/* 4. Especificaciones del Trabajo de Taller */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="glass-card p-5 rounded-2xl text-center space-y-1">
+            <Clock className="w-5 h-5 text-amber-400 mx-auto mb-2" />
+            <div className="text-xs text-slate-400 font-medium">Tiempo en Taller</div>
+            <div className="text-base font-extrabold text-white">8 Días Hábiles</div>
+          </div>
+          <div className="glass-card p-5 rounded-2xl text-center space-y-1">
+            <ShieldCheck className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
+            <div className="text-xs text-slate-400 font-medium">Garantía Soldadura</div>
+            <div className="text-base font-extrabold text-white">De por Vida (TIG)</div>
+          </div>
+          <div className="glass-card p-5 rounded-2xl text-center space-y-1">
+            <Sparkles className="w-5 h-5 text-cyan-400 mx-auto mb-2" />
+            <div className="text-xs text-slate-400 font-medium">Acabado Principal</div>
+            <div className="text-base font-extrabold text-white">Inox 304 Espejo</div>
+          </div>
+          <div className="glass-card p-5 rounded-2xl text-center space-y-1">
+            <Truck className="w-5 h-5 text-orange-400 mx-auto mb-2" />
+            <div className="text-xs text-slate-400 font-medium">Nivel Modificación</div>
+            <div className="text-base font-extrabold text-white">Stage 3 (Full Custom)</div>
+          </div>
+        </div>
 
-          {activeTab === "video" && (
-            <div className="showroom-video-section">
-              <div className="video-player-container">
-                <video
-                  controls
-                  playsInline
-                  preload="metadata"
-                  poster={showcase?.cinematicVideo?.thumbnail_url}
-                  className="cinematic-video-element"
+        {/* 5. Galería Detallada de Piezas Instaladas */}
+        {showcase?.photos && showcase.photos.length > 0 && (
+          <div className="space-y-4">
+            <div className="text-center max-w-lg mx-auto">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                Planos Detalle
+              </span>
+              <h3 className="text-2xl font-bold text-white">Piezas & Lujos Instalados</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {showcase.photos.map((photo, i) => (
+                <div
+                  key={i}
+                  className="glass-card rounded-2xl overflow-hidden border border-white/10 group"
                 >
-                  <source
-                    src={showcase?.cinematicVideo?.url || "http://localhost:4000/api/stream/video/cinematic.mp4"}
-                    type="video/mp4"
-                  />
-                  Tu navegador no soporta reproducción de video HTML5.
-                </video>
-              </div>
-              <div className="video-stream-badge">
-                <span className="stream-dot"></span> Streaming fluido HTTP 206 Partial Content (Optimizado para tomas aéreas y alta tasa de bits)
-              </div>
-            </div>
-          )}
-
-          {activeTab === "gallery" && (
-            <div className="showroom-grid">
-              {showcase?.photos?.map((photo, index) => (
-                <div key={index} className="showroom-photo-card">
-                  <img src={photo.url} alt={photo.title} loading="lazy" decoding="async" />
-                  <div className="photo-overlay">
-                    <p>{photo.title}</p>
+                  <div className="h-52 bg-carbon-950 overflow-hidden">
+                    <img
+                      src={photo.url}
+                      alt={photo.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        e.target.src = "/images/showroom/detail_bumper_chrome.jpg";
+                      }}
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h4 className="font-bold text-sm text-slate-200 line-clamp-2">
+                      {photo.title}
+                    </h4>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* 4. Ficha Técnica de Modificaciones & Materiales */}
-      <section className="showroom-details-section">
-        <div className="details-card">
-          <div className="details-header">
-            <h3>🛠️ Resumen de Trabajos Realizados</h3>
-            <span className="details-serial">Orden #{workOrder?.id}</span>
           </div>
-          <p className="details-description">{workOrder?.description}</p>
+        )}
 
-          <div className="details-specs-grid">
-            <div className="spec-box">
-              <span className="spec-label">Marca & Chasis</span>
-              <span className="spec-value">{workOrder?.brand} {workOrder?.line}</span>
+        {/* 6. CTA Final: Cotizar transformación */}
+        <div className="glass-card p-8 sm:p-12 rounded-3xl text-center space-y-5 border-amber-500/25 relative overflow-hidden">
+          <div className="max-w-2xl mx-auto space-y-3 relative z-10">
+            <h3 className="text-2xl sm:text-3xl font-black text-white">
+              ¿Quieres que tu mula luzca así en carretera?
+            </h3>
+            <p className="text-sm text-slate-300">
+              Cotiza la fabricación de tu bomper en acero inoxidable calibre pesado, visera americana tipo espejo y accesorios de lujo directamente con nuestro taller.
+            </p>
+            <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => setShowQuoteModal(true)}
+                className="px-6 py-3 rounded-xl text-sm font-black bg-gradient-to-r from-amber-500 to-amber-600 text-carbon-950 shadow-xl shadow-amber-500/25 hover:brightness-110 transition-all flex items-center gap-2"
+              >
+                <span>Cotizar Mi Nave Ahora</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <a
+                href={sharing?.whatsappShareUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-6 py-3 rounded-xl text-sm font-bold bg-carbon-900 text-slate-200 border border-white/10 hover:bg-carbon-800 transition-all flex items-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4 text-emerald-400" />
+                <span>Hablar con un Maestro</span>
+              </a>
             </div>
-            <div className="spec-box">
-              <span className="spec-label">Color y Acabados</span>
-              <span className="spec-value">{workOrder?.color || "Personalizado"}</span>
-            </div>
-            <div className="spec-box">
-              <span className="spec-label">Trabajos Clave</span>
-              <span className="spec-value">Bomper Acero • Visera • LED</span>
-            </div>
-            <div className="spec-box">
-              <span className="spec-label">Garantía de Taller</span>
-              <span className="spec-value text-amber-400">Certificada Mellos Truck</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Llamado a la Acción Comercial (Viralización) */}
-      <footer className="showroom-footer-cta">
-        <div className="cta-box">
-          <h2>¿Quieres una transformación de este nivel para tu camión?</h2>
-          <p>
-            En Mellos Truck fabricamos accesorios a medida, bompers de acero inoxidable y personalización que impone respeto en carretera.
-          </p>
-          <div className="cta-actions">
-            <button
-              type="button"
-              onClick={() => setQuoteModalOpen(true)}
-              className="btn-cta-primary"
-              style={{ cursor: "pointer", border: "none" }}
-            >
-              ⚡ Cotizar Mi Mula Ahora
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuoteModalOpen(true)}
-              className="btn-cta-whatsapp"
-              style={{ cursor: "pointer", border: "none" }}
-            >
-              💬 Hablar con un Asesor de Taller
-            </button>
           </div>
         </div>
-      </footer>
+      </main>
 
-      {/* Modal de Cotización Express para Showroom */}
+      {/* Modal de Cotización Rápida */}
       <QuickQuoteModal
-        isOpen={quoteModalOpen}
-        onClose={() => setQuoteModalOpen(false)}
-        initialVehicle={vehicleFullName || "Kenworth T800"}
-        initialService='Bomper 20" Inox Calibre 10'
+        isOpen={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
+        initialService={`Transformación como ${workOrder?.brand || "Kenworth"} ${workOrder?.line || "T800"}`}
       />
     </div>
   );

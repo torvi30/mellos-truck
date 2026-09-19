@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from "react";
 import ImageUploader from "../components/ImageUploader";
-import { showSuccessToast, showErrorToast, showConfirmAlert } from "../utils/alerts";
+import { productsService } from "../services/firebaseService.js";
+import { showSuccessToast, showErrorToast } from "../utils/alerts";
+import {
+  Package,
+  Plus,
+  Search,
+  AlertTriangle,
+  Minus,
+  CheckCircle2,
+  Filter,
+  X,
+  Sparkles,
+} from "lucide-react";
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([]);
@@ -32,15 +44,11 @@ export default function InventoryPage() {
   const loadInventory = async () => {
     setLoading(true);
     try {
-      const url = `http://localhost:4000/api/products?category=${encodeURIComponent(category)}&search=${encodeURIComponent(search)}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setProducts(data.products || []);
-        setLowStockCount(data.lowStockCount || 0);
-      }
+      const res = await productsService.getAll({ category, search });
+      setProducts(res.products || []);
+      setLowStockCount(res.lowStockCount || 0);
     } catch (err) {
-      console.warn("Cargando inventario:", err);
+      console.warn("Error cargando inventario:", err);
     } finally {
       setLoading(false);
     }
@@ -52,13 +60,9 @@ export default function InventoryPage() {
 
   const handleStockDelta = async (id, delta) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/products/${id}/stock`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ delta }),
-      });
-      if (res.ok) {
-        showSuccessToast(delta > 0 ? "+1 unidad ingresada al Container" : "-1 unidad despachada a taller");
+      const res = await productsService.updateStock(id, delta);
+      if (res.success) {
+        showSuccessToast(delta > 0 ? "+1 unidad ingresada al Container" : "-1 unidad despachada");
         await loadInventory();
       }
     } catch (err) {
@@ -69,18 +73,13 @@ export default function InventoryPage() {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.nombre || !form.sku) {
-      showErrorToast("Ingresa nombre y SKU del producto");
+      showErrorToast("Ingresa el nombre y SKU del repuesto/lujo");
       return;
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      if (res.ok) {
+      const res = await productsService.create(form);
+      if (res.success) {
         showSuccessToast("¡Producto registrado en el Container con éxito!");
         await loadInventory();
         setShowModal(false);
@@ -93,260 +92,296 @@ export default function InventoryPage() {
           categoria: "Acero Inoxidable",
           imagen_url: "",
         });
-      } else {
-        const errData = await res.json();
-        showErrorToast(errData.message || "Error al crear producto");
       }
     } catch (err) {
-      showErrorToast("Error de conexión al servidor");
+      showErrorToast("Error al guardar el producto");
     }
   };
 
   return (
-    <div className="studio-container">
-      {/* Header */}
-      <div className="studio-header">
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. Header de Página */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
-          <h1>Control de Inventario & Tienda Container</h1>
-          <p>
-            Gestión de stock en tiempo real, alertas de reposición automática y salida de repuestos hacia el taller.
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">
+            <Package className="w-4 h-4" />
+            <span>Tienda Física & Repuestos de Taller</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Inventario Container
+          </h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Control de stock en tiempo real sincronizado con Cloud Firestore.
           </p>
         </div>
-        <button className="primary-btn pulse-btn" onClick={() => setShowModal(true)}>
-          📦 + Registrar Producto / Lujo
+
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all self-start sm:self-auto"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ Nuevo Repuesto / Lujo</span>
         </button>
       </div>
 
-      {/* Banner de Alerta de Stock Bajo */}
+      {/* 2. Banner de Alerta si hay stock crítico */}
       {lowStockCount > 0 && (
-        <div className="inventory-alert-banner">
-          <div className="alert-icon">⚠️</div>
-          <div>
-            <strong>¡Atención: Stock Crítico Detectado!</strong>
-            <p>
-              Hay <strong>{lowStockCount} producto(s)</strong> con unidades iguales o por debajo del mínimo de seguridad. Se requiere reposición para no frenar trabajos de taller.
-            </p>
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-3 text-red-400">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 animate-bounce" />
+            <span className="text-xs sm:text-sm font-semibold">
+              Atención: <strong>{lowStockCount} producto(s)</strong> han llegado o están por debajo de su stock mínimo de seguridad en el Container.
+            </span>
           </div>
+          <span className="text-xs px-2.5 py-1 rounded-full font-black bg-red-500/20 border border-red-500/40">
+            {lowStockCount} Crítico(s)
+          </span>
         </div>
       )}
 
-      {/* Filtros y Búsqueda */}
-      <div className="inventory-toolbar">
-        <div className="category-chips">
+      {/* 3. Filtros y Búsqueda */}
+      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        {/* Barra de Búsqueda */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, SKU o categoría..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+          />
+        </div>
+
+        {/* Selector de Categorías */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
           {categories.map((cat) => (
             <button
               key={cat}
-              className={`chip-btn ${category === cat ? "active" : ""}`}
               onClick={() => setCategory(cat)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                category === cat
+                  ? "bg-amber-500 text-carbon-950 shadow-md shadow-amber-500/20"
+                  : "bg-carbon-900 text-slate-400 hover:text-white border border-white/5"
+              }`}
             >
               {cat}
             </button>
           ))}
         </div>
-
-        <input
-          type="text"
-          className="search-input"
-          placeholder="🔍 Buscar por nombre, SKU o categoría..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
       </div>
 
-      {/* Tabla de Productos con Contenedor Responsive */}
-      <div className="studio-card-wrapper" style={{ overflowX: "auto", width: "100%" }}>
-        <table className="pro-table" style={{ minWidth: "680px" }}>
-          <thead>
-            <tr>
-              <th style={{ width: "65px", textAlign: "center" }}>Foto</th>
-              <th>SKU / Código</th>
-              <th>Producto & Descripción</th>
-              <th>Categoría</th>
-              <th>Precio Unitario</th>
-              <th>Stock Actual</th>
-              <th>Alerta Mín.</th>
-              <th>Ajuste Rápido</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="8" style={{ textAlign: "center", padding: "30px" }}>
-                  Cargando productos de la Tienda Container...
-                </td>
-              </tr>
-            ) : products.length === 0 ? (
-              <tr>
-                <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>
-                  No se encontraron productos con los filtros seleccionados.
-                </td>
-              </tr>
-            ) : (
-              products.map((item) => {
-                const isCritical = item.stock <= item.min_stock_alert;
-                return (
-                  <tr key={item.id} className={isCritical ? "row-critical-stock" : ""}>
-                    <td style={{ textAlign: "center", verticalAlign: "middle" }}>
-                      <img
-                        src={item.imagen_url || "/images/showroom/detail_bumper_chrome.jpg"}
-                        alt={item.nombre}
-                        style={{
-                          width: "46px",
-                          height: "46px",
-                          objectFit: "cover",
-                          borderRadius: "8px",
-                          border: "1px solid rgba(255, 255, 255, 0.15)",
-                          display: "inline-block",
-                          background: "#0c0e12",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                        }}
-                        onError={(e) => {
-                          e.target.src = "/images/showroom/detail_bumper_chrome.jpg";
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <span className="sku-badge">{item.sku}</span>
-                    </td>
-                    <td>
-                      <strong>{item.nombre}</strong>
-                    </td>
-                    <td>
-                      <span className="category-pill">{item.categoria}</span>
-                    </td>
-                    <td className="price-cell">
-                      ${new Intl.NumberFormat("es-CO").format(item.precio)} COP
-                    </td>
-                    <td>
-                      <span className={`stock-badge ${isCritical ? "stock-critical" : "stock-ok"}`}>
-                        {item.stock} unidades
-                        {isCritical && " (Crítico)"}
-                      </span>
-                    </td>
-                    <td style={{ color: "#94a3b8", textAlign: "center" }}>
-                      {item.min_stock_alert}
-                    </td>
-                    <td>
-                      <div className="stock-actions-group">
-                        <button
-                          className="btn-delta minus"
-                          onClick={() => handleStockDelta(item.id, -1)}
-                          title="Descontar 1 unidad (Salida a taller)"
-                        >
-                          -1
-                        </button>
-                        <button
-                          className="btn-delta plus"
-                          onClick={() => handleStockDelta(item.id, 1)}
-                          title="Agregar 1 unidad (Entrada Container)"
-                        >
-                          +1
-                        </button>
+      {/* 4. Grid de Productos */}
+      {loading ? (
+        <div className="py-20 text-center text-slate-500">
+          <div className="inline-block w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p className="text-xs">Sincronizando inventario con Firebase...</p>
+        </div>
+      ) : products.length === 0 ? (
+        <div className="glass-card p-12 rounded-2xl text-center space-y-3">
+          <Package className="w-12 h-12 text-slate-600 mx-auto" />
+          <h3 className="text-base font-bold text-white">No se encontraron productos</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            No hay existencias para este filtro o búsqueda. Agrega un nuevo producto para comenzar.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {products.map((prod) => {
+            const isCritical = prod.stock <= prod.min_stock_alert;
+            return (
+              <div
+                key={prod.id}
+                className={`glass-card rounded-2xl overflow-hidden flex flex-col justify-between transition-all ${
+                  isCritical ? "border-red-500/40" : "border-white/10 hover:border-amber-500/30"
+                }`}
+              >
+                {/* Imagen del Producto */}
+                <div className="relative h-44 bg-carbon-950 overflow-hidden group">
+                  <img
+                    src={prod.imagen_url || "/images/showroom/detail_bumper_chrome.jpg"}
+                    alt={prod.nombre}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => {
+                      e.target.src = "/images/showroom/detail_bumper_chrome.jpg";
+                    }}
+                  />
+                  <div className="absolute top-2.5 left-2.5 flex gap-1.5">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-carbon-950/90 backdrop-blur-md text-amber-400 border border-white/10">
+                      {prod.categoria}
+                    </span>
+                  </div>
+                  {isCritical && (
+                    <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-red-500/90 text-white shadow-lg shadow-red-500/30 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>Stock Crítico</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Detalles del Producto */}
+                <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between text-xs text-slate-400 font-mono mb-1">
+                      <span>SKU: {prod.sku}</span>
+                      <span>Mínimo: {prod.min_stock_alert}</span>
+                    </div>
+                    <h3 className="font-bold text-sm text-white line-clamp-2 leading-snug">
+                      {prod.nombre}
+                    </h3>
+                  </div>
+
+                  <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] uppercase text-slate-400 font-bold">Precio Unidad</div>
+                      <div className="text-base font-extrabold text-amber-400">
+                        ${Number(prod.precio || 0).toLocaleString()}
                       </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </div>
 
-      {/* Modal para Crear Producto con Carga de Foto y Previsualización */}
+                    {/* Controlador de Stock Rápido */}
+                    <div className="flex items-center gap-2 bg-carbon-950 p-1.5 rounded-xl border border-white/10">
+                      <button
+                        onClick={() => handleStockDelta(prod.id, -1)}
+                        className="w-7 h-7 rounded-lg bg-carbon-800 text-slate-300 hover:text-white hover:bg-carbon-700 flex items-center justify-center transition-colors"
+                        title="Despachar 1 unidad a taller"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span
+                        className={`text-sm font-black min-w-[24px] text-center ${
+                          isCritical ? "text-red-400" : "text-white"
+                        }`}
+                      >
+                        {prod.stock}
+                      </span>
+                      <button
+                        onClick={() => handleStockDelta(prod.id, 1)}
+                        className="w-7 h-7 rounded-lg bg-carbon-800 text-slate-300 hover:text-white hover:bg-carbon-700 flex items-center justify-center transition-colors"
+                        title="Ingresar 1 unidad al Container"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 5. Modal para Crear Nuevo Producto */}
       {showModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: "560px", maxHeight: "92vh", overflowY: "auto" }}>
-            <div className="modal-header">
-              <h2>📦 Registrar Producto en Tienda Container</h2>
-              <button className="btn-close-modal" onClick={() => setShowModal(false)}>
-                ✕
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+          <div className="glass-card max-w-lg w-full rounded-2xl p-6 space-y-5 border border-white/15 my-8">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-amber-400" />
+                <h3 className="text-lg font-bold text-white">Nuevo Repuesto / Lujo en Container</h3>
+              </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-carbon-800"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              {/* Uploader de Foto de Producto con Live Preview */}
-              <ImageUploader
-                label="📸 Foto del Producto / Accesorio (Vista Previa en Vivo)"
-                currentUrl={form.imagen_url}
-                category="products"
-                aspectRatio="16/9"
-                helperText="Arrastra la foto o selecciónala (JPG, PNG, WEBP máx 12MB)"
-                onImageChange={(url) => setForm((prev) => ({ ...prev, imagen_url: url }))}
-              />
-              <div className="form-field">
-                <label>Nombre del Producto / Accesorio *</label>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre de la Pieza *</label>
                 <input
                   type="text"
-                  placeholder='Ej: Bomper Acero 22" Corte Láser'
+                  required
                   value={form.nombre}
                   onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                  required
+                  placeholder='ej: Bomper de Acero Inoxidable 20" Corte Láser'
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white focus:outline-none focus:border-amber-500/50"
                 />
               </div>
 
-              <div className="form-group-row">
-                <div className="form-field">
-                  <label>Código SKU *</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Código SKU *</label>
                   <input
                     type="text"
-                    placeholder="Ej: BOMP-22-LASER"
+                    required
                     value={form.sku}
                     onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                    required
+                    placeholder="ej: BOMP-INOX-20-KW"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white font-mono uppercase focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
-                <div className="form-field">
-                  <label>Categoría *</label>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Categoría</label>
                   <select
                     value={form.categoria}
                     onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white focus:outline-none focus:border-amber-500/50"
                   >
-                    <option value="Acero Inoxidable">Acero Inoxidable</option>
-                    <option value="Iluminación">Iluminación</option>
-                    <option value="Lujos">Lujos</option>
-                    <option value="Escapes y Cornetas">Escapes y Cornetas</option>
-                    <option value="Estructura">Estructura</option>
+                    {categories.filter((c) => c !== "Todos").map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              <div className="form-group-row">
-                <div className="form-field">
-                  <label>Precio Unitario (COP)</label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Precio ($COP)</label>
                   <input
                     type="number"
-                    placeholder="Ej: 3500000"
                     value={form.precio}
                     onChange={(e) => setForm({ ...form, precio: e.target.value })}
+                    placeholder="3850000"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
-                <div className="form-field">
-                  <label>Stock Inicial</label>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Stock Inicial</label>
                   <input
                     type="number"
                     value={form.stock}
                     onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Stock Mínimo</label>
+                  <input
+                    type="number"
+                    value={form.min_stock_alert}
+                    onChange={(e) => setForm({ ...form, min_stock_alert: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-carbon-900 border border-white/10 text-sm text-white focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
               </div>
 
-              <div className="form-field">
-                <label>Alerta de Stock Mínimo (Disparador de aviso)</label>
-                <input
-                  type="number"
-                  value={form.min_stock_alert}
-                  onChange={(e) => setForm({ ...form, min_stock_alert: e.target.value })}
-                  required
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Fotografía de la Pieza</label>
+                <ImageUploader
+                  value={form.imagen_url}
+                  onChange={(url) => setForm({ ...form, imagen_url: url })}
+                  category="catalog"
                 />
               </div>
 
-              <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setShowModal(false)}>
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold bg-carbon-800 text-slate-300 hover:bg-carbon-700 transition-colors"
+                >
                   Cancelar
                 </button>
-                <button type="submit" className="primary-btn">
-                  Guardar en Inventario
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all"
+                >
+                  Guardar en Container
                 </button>
               </div>
             </form>

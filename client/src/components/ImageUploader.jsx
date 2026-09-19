@@ -1,121 +1,69 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { storage } from "../firebase.js";
+import { storageService } from "../services/firebaseService.js";
 import { showErrorToast, showSuccessToast } from "../utils/alerts";
-
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, "")}/api`
-  : "http://localhost:4000/api";
+import { UploadCloud, Image, Link2, X, Check, Loader2 } from "lucide-react";
 
 export default function ImageUploader({
-  label = "Foto",
+  label = "Fotografía",
+  value = "",
   currentUrl = "",
   category = "catalog",
+  onChange,
   onImageChange,
   aspectRatio = "16/9",
-  helperText = "Arrastra una imagen o haz clic para seleccionarla (JPG, PNG, WEBP)",
 }) {
-  const [preview, setPreview] = useState(currentUrl);
-  const [localBlob, setLocalBlob] = useState("");
+  const initialImg = value || currentUrl || "";
+  const [preview, setPreview] = useState(initialImg);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [mode, setMode] = useState("file"); // "file" | "url"
   const [urlInput, setUrlInput] = useState("");
   const fileInputRef = useRef(null);
 
+  const notifyChange = (url) => {
+    setPreview(url);
+    if (onChange) onChange(url);
+    if (onImageChange) onImageChange(url);
+  };
+
   useEffect(() => {
-    if (!localBlob) {
-      setPreview(currentUrl);
+    if (value || currentUrl) {
+      setPreview(value || currentUrl);
     }
-  }, [currentUrl, localBlob]);
-
-  // Manejador al arrastrar archivo sobre la zona
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
+  }, [value, currentUrl]);
 
   const processFile = async (file) => {
     if (!file) return;
 
-    // Validación de tipo
     const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
     if (!validTypes.includes(file.type)) {
       showErrorToast("Formato no válido. Usa JPG, PNG o WEBP.");
       return;
     }
 
-    // Validación de tamaño (12MB máx)
-    if (file.size > 12 * 1024 * 1024) {
-      showErrorToast("La imagen supera el límite de 12MB.");
+    if (file.size > 15 * 1024 * 1024) {
+      showErrorToast("La imagen supera el límite de 15MB.");
       return;
     }
 
-    // 1. Previsualización instantánea a 0 ms usando el blob local exacto del archivo
-    const objectUrl = URL.createObjectURL(file);
-    setLocalBlob(objectUrl);
-    setPreview(objectUrl);
-
     setUploading(true);
+    setProgress(10);
+
     try {
-      // 2A. MODO CLOUD: Si Firebase Storage está activo, subir directamente a Google Cloud Storage
-      if (storage) {
-        const fileExt = file.name.split(".").pop();
-        const safeName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-        const storageRef = ref(storage, `mellos_truck/${category}/${safeName}`);
-
-        const uploadTask = await uploadBytesResumable(storageRef, file);
-        const downloadUrl = await getDownloadURL(uploadTask.ref);
-
-        if (onImageChange) {
-          onImageChange(downloadUrl, file);
-        }
-        showSuccessToast("Imagen subida a la nube (Firebase Storage)");
-        return;
-      }
-
-      // 2B. MODO LOCAL: Subida al backend Express local
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("category", category);
-
-      const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
-      const res = await fetch(`${API_BASE}/gallery/upload/image`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
+      const res = await storageService.uploadFile(file, category, (pct) => {
+        setProgress(Math.round(pct));
       });
-
-      const data = await res.json();
-      if (res.ok && data.file?.url) {
-        if (onImageChange) {
-          onImageChange(data.file.url, file);
-        }
-        showSuccessToast("Imagen cargada en servidor local");
-      } else {
-        if (onImageChange) {
-          onImageChange(objectUrl, file);
-        }
+      if (res && res.url) {
+        notifyChange(res.url);
+        showSuccessToast("¡Fotografía cargada exitosamente!");
       }
     } catch (err) {
-      console.warn("Error subiendo imagen, usando preview local:", err);
-      if (onImageChange) {
-        onImageChange(objectUrl, file);
-      }
+      console.warn("Error en subida:", err);
+      showErrorToast("No se pudo cargar la imagen a Storage");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      setProgress(0);
     }
   };
 
@@ -123,240 +71,137 @@ export default function ImageUploader({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       processFile(e.dataTransfer.files[0]);
     }
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
-    }
-  };
-
-  const handleApplyUrl = (e) => {
-    e.preventDefault();
+  const handleApplyUrl = () => {
     if (!urlInput.trim()) return;
-    setLocalBlob("");
-    setPreview(urlInput.trim());
-    if (onImageChange) {
-      onImageChange(urlInput.trim(), null);
-    }
-    showSuccessToast("Enlace de imagen aplicado");
-  };
-
-  const handleRemove = (e) => {
-    e.stopPropagation();
-    if (localBlob) {
-      try {
-        URL.revokeObjectURL(localBlob);
-      } catch (_) {}
-    }
-    setLocalBlob("");
-    setPreview("");
+    notifyChange(urlInput.trim());
     setUrlInput("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    if (onImageChange) {
-      onImageChange("", null);
-    }
+    showSuccessToast("URL de imagen aplicada");
   };
 
   return (
-    <div className="image-uploader-wrapper">
-      {/* Header del Uploader */}
-      <div className="image-uploader-label">
-        <span>{label}</span>
-        <div style={{ display: "flex", gap: "0.4rem", fontSize: "0.72rem" }}>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-slate-300">{label}</span>
+        <div className="flex gap-1 bg-carbon-900 p-0.5 rounded-lg border border-white/5">
           <button
             type="button"
             onClick={() => setMode("file")}
-            style={{
-              background: mode === "file" ? "rgba(245, 158, 11, 0.25)" : "transparent",
-              color: mode === "file" ? "#f59e0b" : "#94a3b8",
-              border: "none",
-              borderRadius: "4px",
-              padding: "0.15rem 0.4rem",
-              cursor: "pointer",
-              fontWeight: "700",
-            }}
+            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+              mode === "file" ? "bg-amber-500 text-carbon-950" : "text-slate-400 hover:text-white"
+            }`}
           >
-            📁 Archivo
+            Subir Archivo
           </button>
           <button
             type="button"
             onClick={() => setMode("url")}
-            style={{
-              background: mode === "url" ? "rgba(56, 189, 248, 0.25)" : "transparent",
-              color: mode === "url" ? "#38bdf8" : "#94a3b8",
-              border: "none",
-              borderRadius: "4px",
-              padding: "0.15rem 0.4rem",
-              cursor: "pointer",
-              fontWeight: "700",
-            }}
+            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+              mode === "url" ? "bg-amber-500 text-carbon-950" : "text-slate-400 hover:text-white"
+            }`}
           >
-            🔗 URL
+            Pegar URL
           </button>
         </div>
       </div>
 
-      {mode === "url" ? (
-        /* Pestaña de URL directa */
-        <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.2rem" }}>
+      {mode === "file" ? (
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+          }}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+          className={`relative rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[140px] ${
+            isDragging
+              ? "border-amber-500 bg-amber-500/10 scale-[1.01]"
+              : "border-white/15 bg-carbon-900/60 hover:border-amber-500/40 hover:bg-carbon-900"
+          }`}
+        >
           <input
-            type="url"
-            placeholder="https://ejemplo.com/mula-after.jpg"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            style={{
-              flex: 1,
-              padding: "0.55rem 0.8rem",
-              borderRadius: "8px",
-              background: "#0c0e12",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff",
-              fontSize: "0.82rem",
-            }}
-          />
-          <button
-            type="button"
-            onClick={handleApplyUrl}
-            style={{
-              padding: "0.55rem 0.9rem",
-              background: "linear-gradient(135deg, #38bdf8, #0284c7)",
-              color: "#000",
-              border: "none",
-              borderRadius: "8px",
-              fontWeight: "900",
-              fontSize: "0.8rem",
-              cursor: "pointer",
-            }}
-          >
-            Aplicar
-          </button>
-        </div>
-      ) : null}
-
-      {/* Vista Previa o Zona de Arrastre */}
-      {preview ? (
-        <div className="image-uploader-preview-box">
-          <img
-            src={preview}
-            alt={label}
-            className="image-uploader-preview-img"
-            style={{ aspectRatio }}
-            onError={(e) => {
-              if (localBlob && e.target.src !== localBlob) {
-                e.target.src = localBlob;
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                processFile(e.target.files[0]);
               }
             }}
           />
 
-          {uploading && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "rgba(0,0,0,0.75)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <div style={{ fontSize: "1.8rem" }}>⏳</div>
-              <span style={{ fontSize: "0.8rem", fontWeight: "800", color: "#f59e0b" }}>
-                Subiendo al servidor...
-              </span>
+          {uploading ? (
+            <div className="space-y-2 py-2">
+              <Loader2 className="w-6 h-6 text-amber-500 animate-spin mx-auto" />
+              <div className="text-xs font-bold text-amber-400">Subiendo a Storage... {progress}%</div>
+            </div>
+          ) : preview ? (
+            <div className="relative w-full flex items-center justify-center group">
+              <img
+                src={preview}
+                alt="Vista previa"
+                className="max-h-36 max-w-full rounded-lg object-contain shadow-md"
+                onError={(e) => {
+                  e.target.src = "/images/showroom/detail_bumper_chrome.jpg";
+                }}
+              />
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <span className="text-xs font-bold text-white bg-carbon-900 px-3 py-1.5 rounded-lg border border-white/10">
+                  Haz clic para cambiar
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    notifyChange("");
+                  }}
+                  className="p-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600"
+                  title="Quitar imagen"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5 py-2">
+              <UploadCloud className="w-8 h-8 text-slate-500 mx-auto" />
+              <p className="text-xs font-semibold text-slate-300">
+                Arrastra o <span className="text-amber-400 underline">selecciona una imagen</span>
+              </p>
+              <p className="text-[10px] text-slate-500">JPG, PNG o WEBP (máx. 15MB)</p>
             </div>
           )}
-
-          <div className="image-uploader-overlay">
-            <span style={{ fontSize: "0.75rem", color: "#34d399", fontWeight: "800" }}>
-              ✓ Lista para guardar
-            </span>
-            <div style={{ display: "flex", gap: "0.4rem" }}>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  padding: "0.35rem 0.65rem",
-                  background: "rgba(255,255,255,0.2)",
-                  backdropFilter: "blur(8px)",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  color: "#fff",
-                  borderRadius: "6px",
-                  fontSize: "0.72rem",
-                  fontWeight: "800",
-                  cursor: "pointer",
-                }}
-              >
-                🔄 Cambiar
-              </button>
-              <button
-                type="button"
-                onClick={handleRemove}
-                style={{
-                  padding: "0.35rem 0.65rem",
-                  background: "rgba(239, 68, 68, 0.3)",
-                  backdropFilter: "blur(8px)",
-                  border: "1px solid rgba(239, 68, 68, 0.5)",
-                  color: "#fca5a5",
-                  borderRadius: "6px",
-                  fontSize: "0.72rem",
-                  fontWeight: "800",
-                  cursor: "pointer",
-                }}
-              >
-                🗑️ Quitar
-              </button>
-            </div>
-          </div>
         </div>
       ) : (
-        <div
-          className={`image-uploader-dropzone ${isDragging ? "drag-active" : ""}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <div style={{ fontSize: "2rem", marginBottom: "0.4rem" }}>
-            {isDragging ? "📥" : "📸"}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Link2 className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://... o /images/showroom/..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+            />
           </div>
-          <div style={{ fontSize: "0.85rem", fontWeight: "800", color: "#f8fafc" }}>
-            {isDragging ? "Suelta la imagen aquí" : "Arrastra la foto o haz clic"}
-          </div>
-          <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "0.25rem", maxWidth: "260px" }}>
-            {helperText}
-          </div>
-          <div
-            style={{
-              marginTop: "0.6rem",
-              padding: "0.3rem 0.8rem",
-              background: "rgba(245, 158, 11, 0.15)",
-              border: "1px solid rgba(245, 158, 11, 0.3)",
-              borderRadius: "6px",
-              color: "#f59e0b",
-              fontSize: "0.72rem",
-              fontWeight: "800",
-            }}
+          <button
+            type="button"
+            onClick={handleApplyUrl}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 text-carbon-950 hover:brightness-110"
           >
-            Examinar Archivo
-          </div>
+            Aplicar
+          </button>
         </div>
       )}
-
-      {/* Input de archivo oculto */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png, image/jpeg, image/webp"
-        style={{ display: "none" }}
-        onChange={handleFileChange}
-      />
     </div>
   );
 }

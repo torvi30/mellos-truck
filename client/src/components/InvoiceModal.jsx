@@ -1,5 +1,6 @@
 import React from "react";
 import { showSuccessToast } from "../utils/alerts";
+import { Printer, MessageCircle, X, Receipt, CheckCircle2 } from "lucide-react";
 
 // Convertidor de números a letras en español para valores en Pesos Colombianos (COP)
 function numeroALetrasCOP(cantidad) {
@@ -58,25 +59,27 @@ function numeroALetrasCOP(cantidad) {
   let miles = seccion(millones.resto, 1000, "MIL", "MIL");
   let finales = resolverTresDigitos(miles.resto);
 
-  let resultado = "";
-  if (millones.letras) resultado += millones.letras + " ";
-  if (miles.letras) resultado += miles.letras + " ";
-  if (finales) resultado += finales + " ";
+  let totalLetras = "";
+  if (millones.letras) totalLetras += millones.letras + " ";
+  if (miles.letras) totalLetras += miles.letras + " ";
+  if (finales) totalLetras += finales + " ";
 
-  return (resultado.trim() + " PESOS M/CTE").toUpperCase();
+  return (totalLetras.trim() + " PESOS M/CTE").toUpperCase();
 }
 
 export default function InvoiceModal({ order, onClose }) {
   if (!order) return null;
 
-  const orderId = order.id || 1;
-  const invoiceNumber = `LIQ-${new Date().getFullYear()}-${String(orderId).padStart(4, "0")}`;
-  const fechaIngreso = order.fecha_ingreso ? new Date(order.fecha_ingreso).toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" }) : "Fecha no registrada";
-  const fechaLiquidacion = new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
-  
-  const laborCost = parseFloat(order.costo_mano_obra) || 0;
-  const partsCost = parseFloat(order.costo_repuestos) || 0;
-  const totalCost = parseFloat(order.costo_total) || (laborCost + partsCost);
+  const invoiceNumber = `FAC-${String(order.id).slice(-4)}-${(order.placa || "MT").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
+  const fechaLiquidacion = new Date().toLocaleDateString("es-CO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const laborCost = Number(order.costo_mano_obra) || 0;
+  const partsCost = Number(order.costo_repuestos) || 0;
+  const totalCost = Number(order.costo_total) || (laborCost + partsCost);
   const items = order.items || [];
 
   const handlePrint = () => {
@@ -91,7 +94,7 @@ export default function InvoiceModal({ order, onClose }) {
       ? items.map((it, idx) => `  ${idx + 1}. ${it.nombre} (x${it.cantidad}) -> $${(it.subtotal || 0).toLocaleString("es-CO")} COP`).join("\n")
       : "  • No se registraron repuestos externos del Container.";
 
-    const showroomLink = order.slug ? `http://localhost:5174/galeria/${order.slug}` : "";
+    const showroomLink = order.slug ? `${window.location.origin}/galeria/${order.slug}` : "";
 
     const text = 
 `*MELLOS TRUCK S.A.S. - LIQUIDACIÓN DE ENTREGA* 🚛✨
@@ -120,277 +123,140 @@ _¡Gracias por confiar la personalización de tu máquina en Mellos Truck!_`;
   };
 
   return (
-    <div className="invoice-modal-backdrop">
-      {/* Barra de Acciones Flotante (Se oculta al imprimir) */}
-      <div className="invoice-action-bar no-print">
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "1.2rem" }}>📄</span>
-          <div>
-            <div style={{ fontWeight: "900", color: "#f8fafc", fontSize: "0.95rem" }}>
-              Factura Proforma & Liquidación de Entrega
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white animate-fade-in">
+      {/* Contenedor Flotante */}
+      <div className="max-w-4xl w-full space-y-4 my-6">
+        {/* Barra de Acciones Superior */}
+        <div className="glass-card p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <div className="flex items-center gap-2.5">
+            <Receipt className="w-5 h-5 text-amber-400" />
+            <div>
+              <div className="font-extrabold text-sm text-white">Factura Proforma & Liquidación</div>
+              <div className="text-xs text-slate-400">Consecutivo: <strong className="text-amber-400 font-mono">{invoiceNumber}</strong></div>
             </div>
-            <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-              Consecutivo oficial: <strong style={{ color: "#f59e0b" }}>{invoiceNumber}</strong>
-            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-carbon-800 text-slate-200 border border-white/10 hover:bg-carbon-700 flex items-center gap-1.5"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Imprimir / PDF</span>
+            </button>
+            <button
+              onClick={handleSendWhatsApp}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-carbon-950 hover:brightness-110 flex items-center gap-1.5"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>WhatsApp al Cliente</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-carbon-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={handleSendWhatsApp}
-            className="btn-invoice-whatsapp"
-            title="Enviar liquidación y resumen al WhatsApp del cliente"
-          >
-            <span>📱</span>
-            <span>Enviar por WhatsApp</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="btn-invoice-print"
-            title="Imprimir o guardar como PDF"
-          >
-            <span>🖨️</span>
-            <span>Imprimir / Guardar PDF</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn-invoice-close"
-          >
-            ✕ Cerrar
-          </button>
-        </div>
-      </div>
-
-      {/* Contenedor del Documento Imprimible (Formato Carta / A4) */}
-      <div className="invoice-sheet-container">
-        {/* Cabecera Oficial Membretada */}
-        <div className="invoice-header">
-          <div className="invoice-brand-col">
-            <div className="invoice-brand-badge">
-              <div className="invoice-brand-logo">MT</div>
-              <div>
-                <h1 className="invoice-brand-title">MELLOS TRUCK S.A.S.</h1>
-                <p className="invoice-brand-sub">TRANSFORMACIÓN ARTESANAL & TIENDA CONTAINER DE PESADOS</p>
+        {/* Hoja de Factura (Imprimible en Papel Blanco) */}
+        <div className="bg-white text-slate-900 rounded-2xl p-8 sm:p-12 space-y-8 shadow-2xl print:shadow-none print:rounded-none print:p-8">
+          {/* Encabezado */}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 border-b-2 border-slate-900 pb-6">
+            <div className="space-y-1">
+              <div className="text-2xl font-black tracking-wider text-slate-950">
+                MELLOS TRUCK S.A.S.
               </div>
+              <div className="text-xs text-slate-600 font-semibold">NIT: 901.458.789-2 • Régimen Simplificado</div>
+              <div className="text-xs text-slate-600">Taller Central Pesados & Tienda Container</div>
+              <div className="text-xs text-slate-600">Fontibón Zona Industrial, Bogotá D.C. & Medellín, Colombia</div>
             </div>
-            <div className="invoice-company-details">
-              <div>NIT: 901.482.930-4 • Régimen Simple</div>
-              <div>Carrera 68D # 18-42 Zona Industrial • Bogotá D.C., Colombia</div>
-              <div>Tel: +57 (310) 456-7890 • Email: gerencia@mellostruck.com</div>
-              <div>Showroom Oficial: www.mellostruck.com</div>
-            </div>
-          </div>
 
-          <div className="invoice-meta-col">
-            <div className="invoice-number-box">
-              <div className="invoice-meta-tag">ORDEN DE LIQUIDACIÓN</div>
-              <div className="invoice-meta-number">{invoiceNumber}</div>
-            </div>
-            <div className="invoice-meta-grid">
-              <div><strong>Fecha Emisión:</strong> {fechaLiquidacion}</div>
-              <div><strong>Fecha Ingreso:</strong> {fechaIngreso}</div>
-              <div><strong>Estado de Entrega:</strong> <span className="invoice-badge-status">{order.estado}</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="invoice-divider"></div>
-
-        {/* Ficha del Transportador & Mula */}
-        <div className="invoice-customer-vehicle-grid">
-          <div className="invoice-info-panel">
-            <div className="invoice-panel-title">👤 DATOS DEL PROPIETARIO / CLIENTE</div>
-            <div className="invoice-info-row">
-              <span className="info-label">Nombre:</span>
-              <span className="info-val strong">{order.cliente}</span>
-            </div>
-            <div className="invoice-info-row">
-              <span className="info-label">Teléfono:</span>
-              <span className="info-val">{order.telefono || "No especificado"}</span>
-            </div>
-            <div className="invoice-info-row">
-              <span className="info-label">Documento / NIT:</span>
-              <span className="info-val">C.C. {order.documento || "Cliente Frecuente"}</span>
-            </div>
-            <div className="invoice-info-row">
-              <span className="info-label">Ciudad Operación:</span>
-              <span className="info-val">{order.ciudad || "Nacional (Colombia)"}</span>
-            </div>
-          </div>
-
-          <div className="invoice-info-panel">
-            <div className="invoice-panel-title">🚛 VEHÍCULO INTERVENIDO</div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-              <div>
-                <div className="invoice-info-row">
-                  <span className="info-label">Vehículo:</span>
-                  <span className="info-val strong">{order.marca} {order.linea || ""}</span>
-                </div>
-                <div className="invoice-info-row">
-                  <span className="info-label">Color / Acabado:</span>
-                  <span className="info-val">{order.color || "Personalizado"}</span>
-                </div>
+            <div className="text-left sm:text-right space-y-1">
+              <div className="inline-block px-3 py-1 rounded bg-amber-500 text-slate-950 font-black text-xs font-mono">
+                {invoiceNumber}
               </div>
-
-              {/* Placa Troquelada en la Factura */}
-              <div className="invoice-plate-tag">
-                <div className="plate-letters">{order.placa}</div>
-                <div className="plate-footer">COLOMBIA</div>
-              </div>
-            </div>
-
-            <div className="invoice-info-row">
-              <span className="info-label">Trabajo Solicitado:</span>
-              <span className="info-val italic">{order.descripcion || "Personalización integral de carrocería, bomper y accesorios."}</span>
+              <div className="text-xs text-slate-600 mt-1">Fecha: <strong>{fechaLiquidacion}</strong></div>
+              <div className="text-xs text-slate-600">Estado de Obra: <strong>{order.estado}</strong></div>
             </div>
           </div>
-        </div>
 
-        {/* Tabla Detallada de Repuestos y Accesorios del Container */}
-        <div className="invoice-table-section">
-          <div className="invoice-section-heading">
-            📦 REPUESTOS & ACCESORIOS INSTALADOS (TIENDA CONTAINER)
+          {/* Datos del Cliente y Mula */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+            <div>
+              <span className="text-slate-500 block font-semibold">DATOS DEL TRANSPORTADOR:</span>
+              <div className="text-sm font-black text-slate-900 mt-0.5">{order.cliente}</div>
+              <div className="text-slate-600">Teléfono: {order.telefono || "No registrado"}</div>
+            </div>
+            <div>
+              <span className="text-slate-500 block font-semibold">DATOS DEL VEHÍCULO:</span>
+              <div className="text-sm font-black text-slate-900 mt-0.5">{order.marca} {order.linea} (Placa: <span className="font-mono text-amber-700">{order.placa}</span>)</div>
+              <div className="text-slate-600">Color: {order.color || "Personalizado"}</div>
+            </div>
           </div>
-          <table className="invoice-table">
-            <thead>
-              <tr>
-                <th style={{ width: "40px", textAlign: "center" }}>#</th>
-                <th style={{ width: "120px" }}>SKU</th>
-                <th>DESCRIPCIÓN DE LA PIEZA</th>
-                <th style={{ width: "60px", textAlign: "center" }}>CANT.</th>
-                <th style={{ width: "140px", textAlign: "right" }}>VALOR UNITARIO</th>
-                <th style={{ width: "140px", textAlign: "right" }}>SUBTOTAL (COP)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: "center", padding: "12px", color: "#666", fontStyle: "italic" }}>
-                    No se instalaron repuestos físicos del Container en esta orden (Solo mano de obra especializada).
-                  </td>
+
+          {/* Tabla de Conceptos */}
+          <div className="space-y-2">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b-2 border-slate-900 text-slate-700 uppercase font-black tracking-wider text-[10px]">
+                  <th className="py-2.5">Ítem / Concepto</th>
+                  <th className="py-2.5 text-center">Cant.</th>
+                  <th className="py-2.5 text-right">V. Unitario</th>
+                  <th className="py-2.5 text-right">Subtotal</th>
                 </tr>
-              ) : (
-                items.map((item, idx) => (
-                  <tr key={item.id || idx}>
-                    <td style={{ textAlign: "center", fontWeight: "700" }}>{idx + 1}</td>
-                    <td style={{ fontFamily: "monospace", fontSize: "0.82rem", color: "#444" }}>
-                      {item.sku || "PROD-GEN"}
-                    </td>
-                    <td style={{ fontWeight: "600" }}>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {items.map((item, idx) => (
+                  <tr key={idx}>
+                    <td className="py-2.5 font-semibold text-slate-900">
                       {item.nombre}
+                      <span className="block text-[10px] text-slate-500 font-mono">SKU: {item.sku}</span>
                     </td>
-                    <td style={{ textAlign: "center", fontWeight: "700" }}>{item.cantidad || 1}</td>
-                    <td style={{ textAlign: "right" }}>
-                      ${(item.precio_unitario || 0).toLocaleString("es-CO")}
-                    </td>
-                    <td style={{ textAlign: "right", fontWeight: "700" }}>
-                      ${(item.subtotal || 0).toLocaleString("es-CO")}
-                    </td>
+                    <td className="py-2.5 text-center font-bold">{item.cantidad}</td>
+                    <td className="py-2.5 text-right font-mono">${Number(item.precio_unitario).toLocaleString("es-CO")}</td>
+                    <td className="py-2.5 text-right font-black font-mono">${Number(item.subtotal).toLocaleString("es-CO")}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Tabla de Servicios y Mano de Obra */}
-        <div className="invoice-table-section">
-          <div className="invoice-section-heading">
-            ⚡ MANO DE OBRA, PAILERÍA & CONTROL DE CALIDAD
-          </div>
-          <table className="invoice-table">
-            <thead>
-              <tr>
-                <th style={{ width: "40px", textAlign: "center" }}>#</th>
-                <th>CONCEPTO OPERATIVO</th>
-                <th style={{ width: "120px", textAlign: "center" }}>GARANTÍA</th>
-                <th style={{ width: "140px", textAlign: "right" }}>VALOR (COP)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={{ textAlign: "center", fontWeight: "700" }}>1</td>
-                <td>
-                  <strong>Pailería Pesada, Soldadura TIG, Ajuste de Cabina & Acabado Poliuretano</strong>
-                  <div style={{ fontSize: "0.75rem", color: "#666", marginTop: "2px" }}>
-                    Montaje de bomper a chasis con pernos de grado, alineación de visera americana, calibración de cornetas y pulido espejo de acero inoxidable 304.
-                  </div>
-                </td>
-                <td style={{ textAlign: "center", fontWeight: "700", color: "#166534" }}>12 Meses</td>
-                <td style={{ textAlign: "right", fontWeight: "800" }}>
-                  ${laborCost.toLocaleString("es-CO")}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Resumen Contable y Monto en Letras */}
-        <div className="invoice-totals-wrapper">
-          <div className="invoice-words-box">
-            <div style={{ fontSize: "0.7rem", fontWeight: "800", color: "#555", textTransform: "uppercase" }}>
-              VALOR TOTAL EN LETRAS:
-            </div>
-            <div className="invoice-words-text">
-              {numeroALetrasCOP(totalCost)}
-            </div>
-            <div style={{ fontSize: "0.7rem", color: "#666", marginTop: "4px" }}>
-              Forma de Pago: Contado / Transferencia Bancaria antes de entrega de la unidad.
-            </div>
+                ))}
+                <tr>
+                  <td className="py-2.5 font-semibold text-slate-900">
+                    Mano de Obra Especializada & Pailería en Acero Inoxidable 304
+                    <span className="block text-[10px] text-slate-500 italic">{order.descripcion || "Fabricación y montaje artesanal"}</span>
+                  </td>
+                  <td className="py-2.5 text-center font-bold">1</td>
+                  <td className="py-2.5 text-right font-mono">${laborCost.toLocaleString("es-CO")}</td>
+                  <td className="py-2.5 text-right font-black font-mono">${laborCost.toLocaleString("es-CO")}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div className="invoice-totals-table">
-            <div className="totals-row">
-              <span>Subtotal Repuestos:</span>
-              <strong>${partsCost.toLocaleString("es-CO")} COP</strong>
+          {/* Totales y Letras */}
+          <div className="pt-4 border-t-2 border-slate-900 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-1 max-w-md">
+              <span className="text-[10px] font-black uppercase text-slate-500">Valor en Letras:</span>
+              <div className="text-xs font-bold text-slate-800">{numeroALetrasCOP(totalCost)}</div>
+              <div className="text-[10px] text-slate-500 pt-2">
+                * Garantía de Taller: 12 meses en soldadura TIG y estructura en acero inox 304.
+              </div>
             </div>
-            <div className="totals-row">
-              <span>Subtotal Mano de Obra:</span>
-              <strong>${laborCost.toLocaleString("es-CO")} COP</strong>
-            </div>
-            <div className="totals-row">
-              <span>Impuestos / Retenciones:</span>
-              <strong>$0 COP (Régimen Simple)</strong>
-            </div>
-            <div className="totals-row grand-total">
-              <span>TOTAL A PAGAR:</span>
-              <span>${totalCost.toLocaleString("es-CO")} COP</span>
+
+            <div className="w-full sm:w-64 space-y-1 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>Repuestos Container:</span>
+                <span className="font-mono">${partsCost.toLocaleString("es-CO")}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Mano de Obra:</span>
+                <span className="font-mono">${laborCost.toLocaleString("es-CO")}</span>
+              </div>
+              <div className="flex justify-between text-base font-black text-slate-950 pt-2 border-t border-slate-900">
+                <span>TOTAL A PAGAR:</span>
+                <span className="font-mono text-amber-700">${totalCost.toLocaleString("es-CO")} COP</span>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Cláusula de Garantía de Pailería y Acero Inoxidable */}
-        <div className="invoice-warranty-clause">
-          <div className="warranty-title">🛡️ CERTIFICADO DE GARANTÍA Y CONFORMIDAD TÉCNICA (MELLOS TRUCK S.A.S.)</div>
-          <p className="warranty-text">
-            Mellos Truck certifica que todos los trabajos de soldadura TIG, fijación de soportes en chasis y piezas fabricadas en lámina de acero inoxidable calidad 304 cuentan con una garantía comercial de <strong>doce (12) meses</strong> contra desprendimiento, fisuras de cordón o defectos de fábrica en herrajes. No cubre daños por colisión en carretera, sobrecarga extrema o manipulación indebida en otros talleres no autorizados.
-          </p>
-        </div>
-
-        {/* Firmas de Conformidad */}
-        <div className="invoice-signatures-grid">
-          <div className="invoice-signature-box">
-            <div className="sig-line"></div>
-            <div className="sig-name">Mellos Truck S.A.S.</div>
-            <div className="sig-role">Jefe de Patio / Maestro Pailero Autorizado</div>
-          </div>
-
-          <div className="invoice-signature-box">
-            <div className="sig-line"></div>
-            <div className="sig-name">{order.cliente}</div>
-            <div className="sig-role">Recibido a Conformidad (Propietario / Conductor)</div>
-            <div className="sig-doc">C.C. _______________________</div>
-          </div>
-        </div>
-
-        {/* Footer Legal */}
-        <div className="invoice-footer-legal">
-          Documento expedido por el sistema informático de taller Mellos Truck. Válido como orden de liquidación de taller y constancia de entrega de vehículo automotor de servicio público / particular de carga pesada.
         </div>
       </div>
     </div>

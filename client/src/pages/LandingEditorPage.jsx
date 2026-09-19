@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ImageUploader from "../components/ImageUploader";
+import { settingsService } from "../services/firebaseService.js";
 import { showSuccessToast, showErrorToast, showConfirmAlert } from "../utils/alerts";
-
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, "")}/api`
-  : "http://localhost:4000/api";
+import {
+  Sliders,
+  Save,
+  RotateCcw,
+  Sparkles,
+  Megaphone,
+  Phone,
+  BarChart3,
+  SplitSquareVertical,
+  Plus,
+  Trash2,
+  ExternalLink,
+  MapPin,
+  CheckCircle2,
+} from "lucide-react";
 
 const PRESET_TRUCKS = [
   { name: "Kenworth T800 (Azul Showroom)", url: "/images/showroom/kenworth_after.jpg" },
@@ -17,10 +29,29 @@ const PRESET_TRUCKS = [
 export default function LandingEditorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("hero"); // "hero" | "contact" | "announcement" | "metrics" | "slider"
+  const [activeTab, setActiveTab] = useState("hero"); // "hero" | "announcement" | "slider" | "metrics" | "contact"
   const [config, setConfig] = useState(null);
   const [activeHotspotIndex, setActiveHotspotIndex] = useState(0);
-  const pinboardRef = React.useRef(null);
+  const pinboardRef = useRef(null);
+
+  const fetchConfig = async () => {
+    setLoading(true);
+    try {
+      const res = await settingsService.getLanding();
+      if (res.success && res.config) {
+        setConfig(res.config);
+      }
+    } catch (err) {
+      console.error("Error cargando configuración:", err);
+      showErrorToast("Error al cargar la configuración");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConfig();
+  }, []);
 
   const handlePinboardClick = (e) => {
     if (!pinboardRef.current) return;
@@ -33,10 +64,8 @@ export default function LandingEditorPage() {
     const clickY = e.clientY - rect.top;
     let pctX = Math.round((clickX / rect.width) * 100);
     let pctY = Math.round((clickY / rect.height) * 100);
-    if (pctX < 0) pctX = 0;
-    if (pctX > 100) pctX = 100;
-    if (pctY < 0) pctY = 0;
-    if (pctY > 100) pctY = 100;
+    pctX = Math.max(0, Math.min(100, pctX));
+    pctY = Math.max(0, Math.min(100, pctY));
 
     const newHotspots = [...currentHotspots];
     newHotspots[targetIdx] = {
@@ -51,19 +80,19 @@ export default function LandingEditorPage() {
         hotspots: newHotspots,
       },
     });
-    showSuccessToast(`Punto #${targetIdx + 1} (${newHotspots[targetIdx].tag || "Accesorio"}) ubicado en (${pctX}%, ${pctY}%)`);
+    showSuccessToast(`Punto #${targetIdx + 1} ubicado en (${pctX}%, ${pctY}%)`);
   };
 
   const handleAddHotspot = () => {
     const currentHotspots = config?.beforeAfter?.hotspots || [];
     const newSpot = {
       id: `spot_${Date.now()}`,
-      tag: "LUCES ESTACIONARIAS",
-      title: "Luces de Galería LED Ambar (Estacionarias)",
-      subtitle: "Instalación de luces perimetrales de alta potencia en cabina y visera.",
-      image: "/images/showroom/detail_visera_cornetas.jpg",
-      x: 52,
-      y: 20,
+      tag: "NUEVO ACCESORIO",
+      title: "Accesorio en Acero Inoxidable",
+      subtitle: "Corte láser y pulido espejo artesanal.",
+      image: "/images/showroom/detail_bumper_chrome.jpg",
+      x: 50,
+      y: 50,
     };
     const updated = [...currentHotspots, newSpot];
     setConfig({
@@ -74,16 +103,12 @@ export default function LandingEditorPage() {
       },
     });
     setActiveHotspotIndex(updated.length - 1);
-    showSuccessToast("¡Punto creado! Haz clic sobre la foto para posicionarlo donde van las estacionarias.");
+    showSuccessToast("Punto interactivo agregado. Haz clic en la foto para posicionarlo.");
   };
 
   const handleDeleteHotspot = (indexToDelete) => {
     const currentHotspots = config?.beforeAfter?.hotspots || [];
-    if (currentHotspots.length <= 1) {
-      showErrorToast("Debe haber al menos 1 punto interactivo.");
-      return;
-    }
-    const updated = currentHotspots.filter((_, idx) => idx !== indexToDelete);
+    const updated = currentHotspots.filter((_, i) => i !== indexToDelete);
     setConfig({
       ...config,
       beforeAfter: {
@@ -95,889 +120,491 @@ export default function LandingEditorPage() {
     showSuccessToast("Punto interactivo eliminado.");
   };
 
-  const fetchConfig = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/settings/landing`);
-      const data = await res.json();
-      if (data.success && data.config) {
-        setConfig(data.config);
-      }
-    } catch (err) {
-      console.error("Error cargando configuración:", err);
-      showErrorToast("Error al cargar la configuración de la landing");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
   const handleSave = async () => {
     if (!config) return;
     setSaving(true);
     try {
-      const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
-      const res = await fetch(`${API_BASE}/settings/landing`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(config),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showSuccessToast("¡Página principal actualizada y en vivo con éxito!");
-      } else {
-        showErrorToast(data.message || "Error al guardar");
-      }
+      await settingsService.updateLanding(config);
+      showSuccessToast("¡Página principal actualizada y en vivo en Firebase!");
     } catch (err) {
       console.error("Error guardando:", err);
-      showErrorToast("No se pudo conectar con el servidor para guardar los cambios");
+      showErrorToast("Error al guardar cambios");
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = async () => {
-    const confirm = await showConfirmAlert(
-      "¿Restaurar configuración original?",
-      "Se restablecerán todos los textos, imágenes y métricas a los valores recomendados de fábrica."
+    const ok = await showConfirmAlert(
+      "¿Restaurar valores de fábrica?",
+      "Se restablecerán todos los textos, imágenes y métricas originales."
     );
-    if (!confirm.isConfirmed) return;
+    if (!ok) return;
 
     try {
-      const token = localStorage.getItem("token") || "dev-mock-token-mellostruck";
-      const res = await fetch(`${API_BASE}/settings/landing/reset`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await res.json();
-      if (data.success) {
-        setConfig(data.config);
-        showSuccessToast("Configuración restablecida a los valores originales");
+      const res = await settingsService.resetLanding();
+      if (res.success && res.config) {
+        setConfig(res.config);
+        showSuccessToast("Configuración restablecida con éxito");
       }
     } catch (err) {
-      console.error("Error restableciendo:", err);
-      showErrorToast("Error al restablecer la configuración");
+      showErrorToast("Error al restablecer configuración");
     }
   };
 
   if (loading || !config) {
     return (
-      <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>
-        <div className="spinner" style={{ margin: "0 auto 1rem auto" }}></div>
-        <p>Cargando consola de personalización web...</p>
+      <div className="py-24 text-center text-slate-500">
+        <div className="inline-block w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p className="text-xs">Cargando editor visual desde Firebase...</p>
       </div>
     );
   }
 
+  const tabs = [
+    { id: "hero", label: "Portada / Hero", icon: Sparkles },
+    { id: "announcement", label: "Barra Anuncios", icon: Megaphone },
+    { id: "slider", label: "Antes vs Después", icon: SplitSquareVertical },
+    { id: "metrics", label: "Métricas", icon: BarChart3 },
+    { id: "contact", label: "WhatsApp & Redes", icon: Phone },
+  ];
+
   return (
-    <div style={{ maxWidth: "1100px", margin: "0 auto", paddingBottom: "5rem" }}>
-      {/* 1. Header de la Consola */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "1rem",
-          marginBottom: "1.5rem",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          paddingBottom: "1.2rem",
-        }}
-      >
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. Header del Editor */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "1.4rem" }}>🎨</span>
-            <h1 style={{ fontSize: "1.45rem", fontWeight: "900", color: "#f8fafc", margin: 0 }}>
-              Personalizar Landing Page Web
-            </h1>
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">
+            <Sliders className="w-4 h-4" />
+            <span>Sistema CMS de Contenidos en Tiempo Real</span>
           </div>
-          <p style={{ margin: "0.3rem 0 0 0", fontSize: "0.85rem", color: "#94a3b8" }}>
-            Modifica en tiempo real textos, números de WhatsApp, imágenes y promociones de la portada sin tocar código.
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Editor de Portada & Showroom
+          </h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Personaliza textos, fotos insignia, puntos interactivos y WhatsApp sin tocar código.
           </p>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <a
-            href="/"
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              padding: "0.65rem 1rem",
-              borderRadius: "8px",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              color: "#cbd5e1",
-              fontSize: "0.82rem",
-              fontWeight: "700",
-              textDecoration: "none",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <span>👁️</span>
-            <span>Ver Web en Vivo</span>
-          </a>
-
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             onClick={handleReset}
-            style={{
-              padding: "0.65rem 0.9rem",
-              borderRadius: "8px",
-              background: "rgba(239,68,68,0.12)",
-              border: "1px solid rgba(239,68,68,0.3)",
-              color: "#f87171",
-              fontSize: "0.82rem",
-              fontWeight: "700",
-              cursor: "pointer",
-            }}
-            title="Restaurar a los textos de fábrica"
+            className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-carbon-900 text-slate-300 border border-white/10 hover:bg-carbon-800 transition-colors flex items-center gap-1.5"
+            title="Restablecer configuración de fábrica"
           >
-            🔄 Restaurar
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Restablecer</span>
           </button>
 
           <button
             onClick={handleSave}
             disabled={saving}
-            className="primary-btn"
-            style={{
-              padding: "0.65rem 1.4rem",
-              fontSize: "0.88rem",
-              fontWeight: "900",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-carbon-950 shadow-lg shadow-amber-500/20 hover:brightness-110 disabled:opacity-50 transition-all"
           >
-            <span>💾</span>
-            <span>{saving ? "Guardando..." : "Guardar Cambios"}</span>
+            <Save className="w-4 h-4" />
+            <span>{saving ? "Guardando..." : "Guardar en Vivo"}</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Selector de Pestañas */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.4rem",
-          overflowX: "auto",
-          paddingBottom: "0.5rem",
-          marginBottom: "1.5rem",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        {[
-          { id: "hero", label: "🚛 Hero & Portada", icon: "⚡" },
-          { id: "contact", label: "📱 WhatsApp & Contacto", icon: "💬" },
-          { id: "announcement", label: "📣 Barra de Anuncio", icon: "🔥" },
-          { id: "metrics", label: "🏆 Métricas de Confianza", icon: "⭐" },
-          { id: "slider", label: "⚡ Slider Antes/Después", icon: "🔄" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: "0.7rem 1.1rem",
-              borderRadius: "10px",
-              border: "none",
-              background: activeTab === tab.id ? "linear-gradient(135deg, #f59e0b, #d97706)" : "#18181b",
-              color: activeTab === tab.id ? "#000" : "#94a3b8",
-              fontWeight: activeTab === tab.id ? "900" : "600",
-              fontSize: "0.84rem",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              whiteSpace: "nowrap",
-              transition: "all 0.2s ease",
-            }}
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
+      {/* 2. Pestañas de Navegación del CMS */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/5">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? "bg-amber-500 text-carbon-950 shadow-md shadow-amber-500/20"
+                  : "bg-carbon-900 text-slate-400 hover:text-white border border-white/5"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* 3. Contenido de las Pestañas */}
 
-      {/* TAB 1: HERO & PORTADA */}
+      {/* TAB 1: HERO / PORTADA */}
       {activeTab === "hero" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          <div style={{ background: "#14161f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "1.5rem" }}>
-            <h3 style={{ fontSize: "1.05rem", color: "#f59e0b", fontWeight: "900", margin: "0 0 1rem 0" }}>
-              1. Textos Principales del Hero
-            </h3>
+        <div className="glass-card p-6 rounded-2xl space-y-5 border border-white/10">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Sección Principal (Hero Banner)</span>
+          </h3>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                  Badge Superior (Píldora pequeña)
-                </label>
-                <input
-                  type="text"
-                  value={config.hero.badgeText}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      hero: { ...config.hero, badgeText: e.target.value },
-                    })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    borderRadius: "8px",
-                    background: "#0a0c10",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#fbbf24",
-                    fontWeight: "800",
-                    fontSize: "0.88rem",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                  Gran Titular H1 (Impacto Principal)
-                </label>
-                <input
-                  type="text"
-                  value={config.hero.headline}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      hero: { ...config.hero, headline: e.target.value },
-                    })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.8rem",
-                    borderRadius: "8px",
-                    background: "#0a0c10",
-                    border: "1px solid rgba(245,158,11,0.3)",
-                    color: "#fff",
-                    fontWeight: "900",
-                    fontSize: "1.05rem",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                  Párrafo Descriptivo
-                </label>
-                <textarea
-                  rows="3"
-                  value={config.hero.subtitle}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      hero: { ...config.hero, subtitle: e.target.value },
-                    })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.8rem",
-                    borderRadius: "8px",
-                    background: "#0a0c10",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#cbd5e1",
-                    fontSize: "0.86rem",
-                    resize: "vertical",
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                    Texto Botón Principal (CTA 1)
-                  </label>
-                  <input
-                    type="text"
-                    value={config.hero.ctaPrimaryText}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        hero: { ...config.hero, ctaPrimaryText: e.target.value },
-                      })
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#f59e0b",
-                      fontWeight: "800",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                    Texto Botón Secundario (CTA 2)
-                  </label>
-                  <input
-                    type="text"
-                    value={config.hero.ctaSecondaryText}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        hero: { ...config.hero, ctaSecondaryText: e.target.value },
-                      })
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#cbd5e1",
-                      fontWeight: "700",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Insignia Superior (Badge)</label>
+              <input
+                type="text"
+                value={config.hero.badgeText || ""}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    hero: { ...config.hero, badgeText: e.target.value },
+                  })
+                }
+                className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Titular de Gran Impacto (H1)</label>
+              <input
+                type="text"
+                value={config.hero.headline || ""}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    hero: { ...config.hero, headline: e.target.value },
+                  })
+                }
+                className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+              />
             </div>
           </div>
 
-          {/* Ficha de la Mula Protagonista del Hero */}
-          <div style={{ background: "#14161f", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "14px", padding: "1.5rem" }}>
-            <h3 style={{ fontSize: "1.05rem", color: "#f59e0b", fontWeight: "900", margin: "0 0 1rem 0" }}>
-              2. Mula Destacada en la Tarjeta de Portada
-            </h3>
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Subtítulo Descriptivo</label>
+            <textarea
+              rows="3"
+              value={config.hero.subtitle || ""}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  hero: { ...config.hero, subtitle: e.target.value },
+                })
+              }
+              className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+            ></textarea>
+          </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "1.5rem" }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-white/5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Mula Insignia de Portada</label>
+              <ImageUploader
+                value={config.hero.featuredTruck?.imageUrl || ""}
+                onChange={(url) =>
+                  setConfig({
+                    ...config,
+                    hero: {
+                      ...config.hero,
+                      featuredTruck: { ...config.hero.featuredTruck, imageUrl: url },
+                    },
+                  })
+                }
+                category="hero"
+              />
+            </div>
+            <div className="space-y-3">
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.4rem" }}>
-                  Foto de la Tractomula (16:9)
-                </label>
-                <div style={{ borderRadius: "10px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.15)", marginBottom: "0.75rem", height: "160px", background: "#000" }}>
-                  <img
-                    src={config.hero.featuredTruck.imageUrl}
-                    alt="Preview"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                </div>
-
-                <ImageUploader
-                  currentImage={config.hero.featuredTruck.imageUrl}
-                  onUploadComplete={(url) =>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Título de la Mula Destacada</label>
+                <input
+                  type="text"
+                  value={config.hero.featuredTruck?.title || ""}
+                  onChange={(e) =>
                     setConfig({
                       ...config,
                       hero: {
                         ...config.hero,
-                        featuredTruck: { ...config.hero.featuredTruck, imageUrl: url },
+                        featuredTruck: { ...config.hero.featuredTruck, title: e.target.value },
                       },
                     })
                   }
+                  className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
                 />
-
-                <div style={{ marginTop: "0.75rem" }}>
-                  <span style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: "700" }}>O selecciona un preset:</span>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
-                    {PRESET_TRUCKS.map((preset, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() =>
-                          setConfig({
-                            ...config,
-                            hero: {
-                              ...config.hero,
-                              featuredTruck: { ...config.hero.featuredTruck, imageUrl: preset.url },
-                            },
-                          })
-                        }
-                        style={{
-                          background: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          color: "#cbd5e1",
-                          borderRadius: "6px",
-                          padding: "4px 8px",
-                          fontSize: "0.72rem",
-                          textAlign: "left",
-                          cursor: "pointer",
-                        }}
-                      >
-                        🚚 {preset.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                    Etiqueta Superior
-                  </label>
-                  <input
-                    type="text"
-                    value={config.hero.featuredTruck.tag}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        hero: {
-                          ...config.hero,
-                          featuredTruck: { ...config.hero.featuredTruck, tag: e.target.value },
-                        },
-                      })
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#fbbf24",
-                      fontWeight: "800",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                    Modelo del Camión (Ej: Kenworth T800 Aerocab)
-                  </label>
-                  <input
-                    type="text"
-                    value={config.hero.featuredTruck.title}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        hero: {
-                          ...config.hero,
-                          featuredTruck: { ...config.hero.featuredTruck, title: e.target.value },
-                        },
-                      })
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#fff",
-                      fontWeight: "800",
-                      fontSize: "0.9rem",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                    Accesorios Destacados
-                  </label>
-                  <input
-                    type="text"
-                    value={config.hero.featuredTruck.specs}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        hero: {
-                          ...config.hero,
-                          featuredTruck: { ...config.hero.featuredTruck, specs: e.target.value },
-                        },
-                      })
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#94a3b8",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                    Enlace / Magic Link Showroom
-                  </label>
-                  <input
-                    type="text"
-                    value={config.hero.featuredTruck.magicLink}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        hero: {
-                          ...config.hero,
-                          featuredTruck: { ...config.hero.featuredTruck, magicLink: e.target.value },
-                        },
-                      })
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem",
-                      borderRadius: "8px",
-                      background: "#0a0c10",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#38bdf8",
-                      fontSize: "0.85rem",
-                    }}
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Especificaciones de la Mula</label>
+                <input
+                  type="text"
+                  value={config.hero.featuredTruck?.specs || ""}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      hero: {
+                        ...config.hero,
+                        featuredTruck: { ...config.hero.featuredTruck, specs: e.target.value },
+                      },
+                    })
+                  }
+                  className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 2: WHATSAPP & CONTACTO */}
-      {activeTab === "contact" && (
-        <div style={{ background: "#14161f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "1.5rem" }}>
-          <h3 style={{ fontSize: "1.05rem", color: "#22c55e", fontWeight: "900", margin: "0 0 1.2rem 0", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>💬</span> Configuración Central de WhatsApp & Redes
-          </h3>
-
-          <div
-            style={{
-              background: "rgba(34, 197, 94, 0.1)",
-              border: "1px solid rgba(34, 197, 94, 0.3)",
-              borderRadius: "10px",
-              padding: "0.9rem",
-              marginBottom: "1.5rem",
-              fontSize: "0.82rem",
-              color: "#86efac",
-            }}
-          >
-            <strong>💡 Sincronización Automática:</strong> Al cambiar este número telefónico, se actualizarán en caliente todos los botones de la página principal (botón de la cabecera, botón flotante, cotizaciones de productos de la Tienda Container y formulario rápido).
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-            <div>
-              <label style={{ display: "block", fontSize: "0.82rem", fontWeight: "800", color: "#f8fafc", marginBottom: "0.4rem" }}>
-                Número Oficial de WhatsApp (Con código de país 57 sin símbolos ni espacios) *
-              </label>
-              <input
-                type="text"
-                value={config.whatsappNumber}
-                onChange={(e) => setConfig({ ...config, whatsappNumber: e.target.value.replace(/\D/g, "") })}
-                placeholder="Ej: 573104567890"
-                style={{
-                  width: "100%",
-                  maxWidth: "400px",
-                  padding: "0.8rem",
-                  borderRadius: "8px",
-                  background: "#0a0c10",
-                  border: "1px solid #22c55e",
-                  color: "#22c55e",
-                  fontWeight: "900",
-                  fontSize: "1.1rem",
-                }}
-              />
-              <span style={{ display: "block", fontSize: "0.72rem", color: "#94a3b8", marginTop: "4px" }}>
-                Formato: 57 + celular de 10 dígitos (Ej: 573104567890 para el 310 456 7890).
-              </span>
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                Mensaje de Saludo Predeterminado
-              </label>
-              <textarea
-                rows="2"
-                value={config.whatsappDefaultMsg}
-                onChange={(e) => setConfig({ ...config, whatsappDefaultMsg: e.target.value })}
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  borderRadius: "8px",
-                  background: "#0a0c10",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#cbd5e1",
-                  fontSize: "0.85rem",
-                }}
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                  Usuario de Instagram
-                </label>
-                <input
-                  type="text"
-                  value={config.instagramUser}
-                  onChange={(e) => setConfig({ ...config, instagramUser: e.target.value })}
-                  placeholder="@mellos_trucks"
-                  style={{
-                    width: "100%",
-                    padding: "0.7rem",
-                    borderRadius: "8px",
-                    background: "#0a0c10",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#f8fafc",
-                    fontSize: "0.85rem",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                  Enlace Completo de Instagram
-                </label>
-                <input
-                  type="text"
-                  value={config.instagramUrl}
-                  onChange={(e) => setConfig({ ...config, instagramUrl: e.target.value })}
-                  placeholder="https://www.instagram.com/mellos_trucks/"
-                  style={{
-                    width: "100%",
-                    padding: "0.7rem",
-                    borderRadius: "8px",
-                    background: "#0a0c10",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#38bdf8",
-                    fontSize: "0.85rem",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                Ubicación / Ciudad del Taller (Mostrada en Footer)
-              </label>
-              <input
-                type="text"
-                value={config.locationText}
-                onChange={(e) => setConfig({ ...config, locationText: e.target.value })}
-                style={{
-                  width: "100%",
-                  padding: "0.7rem",
-                  borderRadius: "8px",
-                  background: "#0a0c10",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#cbd5e1",
-                  fontSize: "0.85rem",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: BARRA DE ANUNCIO */}
+      {/* TAB 2: BARRA DE ANUNCIOS */}
       {activeTab === "announcement" && (
-        <div style={{ background: "#14161f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem" }}>
-            <h3 style={{ fontSize: "1.05rem", color: "#f59e0b", fontWeight: "900", margin: 0 }}>
-              📣 Barra Superior de Anuncio Promocional
+        <div className="glass-card p-6 rounded-2xl space-y-5 border border-white/10">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-amber-400" />
+              <span>Barra Superior de Notificaciones Promocionales</span>
             </h3>
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "0.85rem", fontWeight: "800", color: config.announcementBar.enabled ? "#34d399" : "#64748b" }}>
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold">
               <input
                 type="checkbox"
-                checked={config.announcementBar.enabled}
+                checked={config.announcementBar?.enabled ?? true}
                 onChange={(e) =>
                   setConfig({
                     ...config,
                     announcementBar: { ...config.announcementBar, enabled: e.target.checked },
                   })
                 }
-                style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                className="w-4 h-4 accent-amber-500 rounded"
               />
-              {config.announcementBar.enabled ? "ACTIVADA EN VIVO" : "DESACTIVADA"}
+              <span className="text-slate-200">Mostrar Barra Activa</span>
             </label>
           </div>
 
-          <p style={{ fontSize: "0.82rem", color: "#94a3b8", marginTop: 0 }}>
-            Muestra una barra delgada y elegante en el tope de la página para campañas de descuento, avisos de cupos o lanzamientos de nuevos accesorios.
-          </p>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                Badge / Etiqueta Llamativa
-              </label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Insignia (ej: 🔥 CUPOS LIMITADOS)</label>
               <input
                 type="text"
-                value={config.announcementBar.badgeText}
+                value={config.announcementBar?.badgeText || ""}
                 onChange={(e) =>
                   setConfig({
                     ...config,
                     announcementBar: { ...config.announcementBar, badgeText: e.target.value },
                   })
                 }
-                style={{
-                  width: "100%",
-                  maxWidth: "350px",
-                  padding: "0.7rem",
-                  borderRadius: "8px",
-                  background: "#0a0c10",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#f59e0b",
-                  fontWeight: "800",
-                  fontSize: "0.85rem",
-                }}
+                className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
-
             <div>
-              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                Mensaje del Anuncio
-              </label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Texto del Botón de Acción</label>
               <input
                 type="text"
-                value={config.announcementBar.message}
+                value={config.announcementBar?.buttonText || ""}
                 onChange={(e) =>
                   setConfig({
                     ...config,
-                    announcementBar: { ...config.announcementBar, message: e.target.value },
+                    announcementBar: { ...config.announcementBar, buttonText: e.target.value },
                   })
                 }
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  borderRadius: "8px",
-                  background: "#0a0c10",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#f8fafc",
-                  fontSize: "0.88rem",
-                }}
+                className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
+          </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                  Texto del Botón
-                </label>
-                <input
-                  type="text"
-                  value={config.announcementBar.buttonText}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      announcementBar: { ...config.announcementBar, buttonText: e.target.value },
-                    })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.7rem",
-                    borderRadius: "8px",
-                    background: "#0a0c10",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#f8fafc",
-                    fontSize: "0.85rem",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                  Destino del Enlace
-                </label>
-                <input
-                  type="text"
-                  value={config.announcementBar.link}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      announcementBar: { ...config.announcementBar, link: e.target.value },
-                    })
-                  }
-                  placeholder="#cotizar o URL completa"
-                  style={{
-                    width: "100%",
-                    padding: "0.7rem",
-                    borderRadius: "8px",
-                    background: "#0a0c10",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#38bdf8",
-                    fontSize: "0.85rem",
-                  }}
-                />
-              </div>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Mensaje Principal del Anuncio</label>
+            <input
+              type="text"
+              value={config.announcementBar?.message || ""}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  announcementBar: { ...config.announcementBar, message: e.target.value },
+                })
+              }
+              className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+            />
           </div>
         </div>
       )}
 
-      {/* TAB 4: MÉTRICAS DE CONFIANZA */}
-      {activeTab === "metrics" && (
-        <div style={{ background: "#14161f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "1.5rem" }}>
-          <h3 style={{ fontSize: "1.05rem", color: "#f59e0b", fontWeight: "900", margin: "0 0 1rem 0" }}>
-            🏆 Las 3 Tarjetas de Confianza del Hero
-          </h3>
-          <p style={{ fontSize: "0.82rem", color: "#94a3b8", marginTop: 0 }}>
-            Estos datos aportan credibilidad inmediata a los dueños de flotas que visitan la web.
-          </p>
+      {/* TAB 3: ANTES VS DESPUÉS & HOTSPOTS INTERACTIVOS */}
+      {activeTab === "slider" && (
+        <div className="glass-card p-6 rounded-2xl space-y-6 border border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <SplitSquareVertical className="w-4 h-4 text-amber-400" />
+                <span>Puntos Interactivos (Hotspots) en la Mula</span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Haz clic directamente en la foto para fijar la ubicación del accesorio (Bomper, Visera, Rines).
+              </p>
+            </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
-            {config.metrics.map((metric, index) => (
-              <div
-                key={index}
-                style={{
-                  background: "#0b0d13",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: "10px",
-                  padding: "1.2rem",
-                }}
-              >
-                <span style={{ fontSize: "0.72rem", color: "#f59e0b", fontWeight: "800", textTransform: "uppercase" }}>
-                  Métrica #{index + 1}
-                </span>
+            <button
+              type="button"
+              onClick={handleAddHotspot}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-carbon-950 transition-all flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Añadir Punto</span>
+            </button>
+          </div>
 
-                <div style={{ marginTop: "0.75rem" }}>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.25rem" }}>
-                    Cifra / Título
-                  </label>
-                  <input
-                    type="text"
-                    value={metric.value}
-                    onChange={(e) => {
-                      const newMetrics = [...config.metrics];
-                      newMetrics[index].value = e.target.value;
-                      setConfig({ ...config, metrics: newMetrics });
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "6px",
-                      background: "#18181b",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#fff",
-                      fontWeight: "900",
-                      fontSize: "0.95rem",
-                    }}
-                  />
+          {/* Tablero Visual (Pinboard Interactivo) */}
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-300">
+              Pinboard Interactivo: Haz clic sobre la mula para ubicar el punto seleccionado
+            </span>
+            <div
+              ref={pinboardRef}
+              onClick={handlePinboardClick}
+              className="relative max-w-2xl mx-auto rounded-2xl overflow-hidden cursor-crosshair border border-white/20 select-none bg-carbon-950"
+            >
+              <img
+                src={config.beforeAfter?.afterImage || "/images/showroom/kenworth_after.jpg"}
+                alt="Pinboard"
+                className="w-full h-auto object-cover pointer-events-none"
+              />
+              {/* Render de los Puntos */}
+              {(config.beforeAfter?.hotspots || []).map((spot, idx) => (
+                <div
+                  key={spot.id || idx}
+                  style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center font-black text-xs transition-transform ${
+                    activeHotspotIndex === idx
+                      ? "bg-amber-500 text-carbon-950 ring-4 ring-amber-500/40 scale-125 z-20"
+                      : "bg-carbon-950 text-white border border-white/30 z-10"
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveHotspotIndex(idx);
+                  }}
+                  title={spot.title}
+                >
+                  {idx + 1}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Selector de Punto a Editar */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {(config.beforeAfter?.hotspots || []).map((spot, idx) => (
+                <button
+                  key={spot.id || idx}
+                  type="button"
+                  onClick={() => setActiveHotspotIndex(idx)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    activeHotspotIndex === idx
+                      ? "bg-amber-500 text-carbon-950"
+                      : "bg-carbon-900 text-slate-300 border border-white/10"
+                  }`}
+                >
+                  <span>Punto #{idx + 1}: {spot.tag || "Accesorio"}</span>
+                  <span className="text-[10px] opacity-75 font-mono">({spot.x}%, {spot.y}%)</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Formulario del Punto Activo */}
+            {config.beforeAfter?.hotspots && config.beforeAfter.hotspots[activeHotspotIndex] && (
+              <div className="p-4 rounded-xl bg-carbon-900/80 border border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-amber-400">
+                    Editando Punto #{activeHotspotIndex + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteHotspot(activeHotspotIndex)}
+                    className="text-xs text-red-400 hover:underline flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar este punto</span>
+                  </button>
                 </div>
 
-                <div style={{ marginTop: "0.75rem" }}>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.25rem" }}>
-                    Leyenda / Subtítulo
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Etiqueta (Badge)</label>
+                    <input
+                      type="text"
+                      value={config.beforeAfter.hotspots[activeHotspotIndex].tag || ""}
+                      onChange={(e) => {
+                        const spots = [...config.beforeAfter.hotspots];
+                        spots[activeHotspotIndex].tag = e.target.value;
+                        setConfig({
+                          ...config,
+                          beforeAfter: { ...config.beforeAfter, hotspots: spots },
+                        });
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-carbon-950 border border-white/10 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Título de la Pieza</label>
+                    <input
+                      type="text"
+                      value={config.beforeAfter.hotspots[activeHotspotIndex].title || ""}
+                      onChange={(e) => {
+                        const spots = [...config.beforeAfter.hotspots];
+                        spots[activeHotspotIndex].title = e.target.value;
+                        setConfig({
+                          ...config,
+                          beforeAfter: { ...config.beforeAfter, hotspots: spots },
+                        });
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-carbon-950 border border-white/10 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Descripción / Calibre</label>
                   <input
                     type="text"
-                    value={metric.label}
+                    value={config.beforeAfter.hotspots[activeHotspotIndex].subtitle || ""}
                     onChange={(e) => {
-                      const newMetrics = [...config.metrics];
-                      newMetrics[index].label = e.target.value;
-                      setConfig({ ...config, metrics: newMetrics });
+                      const spots = [...config.beforeAfter.hotspots];
+                      spots[activeHotspotIndex].subtitle = e.target.value;
+                      setConfig({
+                        ...config,
+                        beforeAfter: { ...config.beforeAfter, hotspots: spots },
+                      });
                     }}
-                    style={{
-                      width: "100%",
-                      padding: "0.6rem",
-                      borderRadius: "6px",
-                      background: "#18181b",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "#cbd5e1",
-                      fontSize: "0.82rem",
+                    className="w-full px-3 py-2 rounded-xl bg-carbon-950 border border-white/10 text-xs text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: MÉTRICAS */}
+      {activeTab === "metrics" && (
+        <div className="glass-card p-6 rounded-2xl space-y-5 border border-white/10">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-amber-400" />
+            <span>Métricas de Confianza de Portada</span>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(config.metrics || []).map((m, idx) => (
+              <div key={idx} className="p-4 rounded-xl bg-carbon-900 border border-white/10 space-y-2">
+                <span className="text-[10px] font-black uppercase text-amber-400">Métrica #{idx + 1}</span>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Valor (ej: +1,200 o 100%)</label>
+                  <input
+                    type="text"
+                    value={m.value || ""}
+                    onChange={(e) => {
+                      const next = [...config.metrics];
+                      next[idx].value = e.target.value;
+                      setConfig({ ...config, metrics: next });
                     }}
+                    className="w-full px-3 py-1.5 rounded-lg bg-carbon-950 border border-white/10 text-xs text-white font-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Etiqueta Descriptiva</label>
+                  <input
+                    type="text"
+                    value={m.label || ""}
+                    onChange={(e) => {
+                      const next = [...config.metrics];
+                      next[idx].label = e.target.value;
+                      setConfig({ ...config, metrics: next });
+                    }}
+                    className="w-full px-3 py-1.5 rounded-lg bg-carbon-950 border border-white/10 text-xs text-white"
                   />
                 </div>
               </div>
@@ -986,646 +613,56 @@ export default function LandingEditorPage() {
         </div>
       )}
 
-      {/* TAB 5: SLIDER ANTES Y DESPUÉS */}
-      {activeTab === "slider" && (
-        <div style={{ background: "#14161f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "1.5rem" }}>
-          <h3 style={{ fontSize: "1.05rem", color: "#f59e0b", fontWeight: "900", margin: "0 0 1rem 0" }}>
-            ⚡ Comparador Interactivo de la Portada
+      {/* TAB 5: CONTACTO & WHATSAPP */}
+      {activeTab === "contact" && (
+        <div className="glass-card p-6 rounded-2xl space-y-5 border border-white/10">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <Phone className="w-4 h-4 text-amber-400" />
+            <span>Configuración de Contacto & Redes</span>
           </h3>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginBottom: "1.2rem" }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#ef4444", marginBottom: "0.35rem" }}>
-                Foto "ANTES" (Llegada al Taller)
-              </label>
-              <div style={{ height: "160px", borderRadius: "10px", overflow: "hidden", background: "#000", border: "1px solid rgba(255,255,255,0.1)", marginBottom: "0.6rem" }}>
-                <img src={config.beforeAfter.beforeImage} alt="Antes" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              </div>
-              <ImageUploader
-                currentImage={config.beforeAfter.beforeImage}
-                onUploadComplete={(url) =>
-                  setConfig({
-                    ...config,
-                    beforeAfter: { ...config.beforeAfter, beforeImage: url },
-                  })
-                }
-              />
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Número de WhatsApp (con código de país, ej: 573104567890)</label>
               <input
                 type="text"
-                value={config.beforeAfter.beforeLabel}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    beforeAfter: { ...config.beforeAfter, beforeLabel: e.target.value },
-                  })
-                }
-                style={{
-                  width: "100%",
-                  marginTop: "0.6rem",
-                  padding: "0.6rem",
-                  borderRadius: "6px",
-                  background: "#0a0c10",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#cbd5e1",
-                  fontSize: "0.8rem",
-                }}
+                value={config.whatsappNumber || ""}
+                onChange={(e) => setConfig({ ...config, whatsappNumber: e.target.value })}
+                className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
-
             <div>
-              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#22c55e", marginBottom: "0.35rem" }}>
-                Foto "DESPUÉS" (Transformación Mellos Truck)
-              </label>
-              <div style={{ height: "160px", borderRadius: "10px", overflow: "hidden", background: "#000", border: "1px solid rgba(255,255,255,0.1)", marginBottom: "0.6rem" }}>
-                <img src={config.beforeAfter.afterImage} alt="Después" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              </div>
-              <ImageUploader
-                currentImage={config.beforeAfter.afterImage}
-                onUploadComplete={(url) =>
-                  setConfig({
-                    ...config,
-                    beforeAfter: { ...config.beforeAfter, afterImage: url },
-                  })
-                }
-              />
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Usuario de Instagram</label>
               <input
                 type="text"
-                value={config.beforeAfter.afterLabel}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    beforeAfter: { ...config.beforeAfter, afterLabel: e.target.value },
-                  })
-                }
-                style={{
-                  width: "100%",
-                  marginTop: "0.6rem",
-                  padding: "0.6rem",
-                  borderRadius: "6px",
-                  background: "#0a0c10",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#cbd5e1",
-                  fontSize: "0.8rem",
-                }}
+                value={config.instagramUser || ""}
+                onChange={(e) => setConfig({ ...config, instagramUser: e.target.value })}
+                className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
               />
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
-            <div>
-              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                Título del Vehículo (Ej: Kenworth T800 • Placa WTL-892)
-              </label>
-              <input
-                type="text"
-                value={config.beforeAfter.truckTitle}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    beforeAfter: { ...config.beforeAfter, truckTitle: e.target.value },
-                  })
-                }
-                style={{
-                  width: "100%",
-                  padding: "0.7rem",
-                  borderRadius: "8px",
-                  background: "#0a0c10",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#fff",
-                  fontWeight: "800",
-                  fontSize: "0.88rem",
-                }}
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Mensaje Predeterminado de WhatsApp al Cotizar</label>
+            <input
+              type="text"
+              value={config.whatsappDefaultMsg || ""}
+              onChange={(e) => setConfig({ ...config, whatsappDefaultMsg: e.target.value })}
+              className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
 
-            <div>
-              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.35rem" }}>
-                Descripción de la Transformación Realizada
-              </label>
-              <input
-                type="text"
-                value={config.beforeAfter.truckDescription}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    beforeAfter: { ...config.beforeAfter, truckDescription: e.target.value },
-                  })
-                }
-                style={{
-                  width: "100%",
-                  padding: "0.7rem",
-                  borderRadius: "8px",
-                  background: "#0a0c10",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#cbd5e1",
-                  fontSize: "0.85rem",
-                }}
-              />
-            </div>
-
-            {/* Ficha de Especificaciones de Taller */}
-            <div style={{ marginTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.2rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "900", color: "#f59e0b", marginBottom: "0.8rem" }}>
-                🛡️ Ficha Técnica de Taller (Garantía, Materiales & Tiempos)
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.9rem" }}>
-                {(config.beforeAfter?.specs || []).map((spec, sIdx) => (
-                  <div
-                    key={sIdx}
-                    style={{
-                      background: "#0d0f17",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: "10px",
-                      padding: "0.8rem",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "0.5rem" }}>
-                      <span style={{ fontSize: "1.2rem" }}>{spec.icon}</span>
-                      <input
-                        type="text"
-                        value={spec.label}
-                        onChange={(e) => {
-                          const newSpecs = [...(config.beforeAfter.specs || [])];
-                          newSpecs[sIdx].label = e.target.value;
-                          setConfig({
-                            ...config,
-                            beforeAfter: { ...config.beforeAfter, specs: newSpecs },
-                          });
-                        }}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          borderBottom: "1px solid #334155",
-                          color: "#94a3b8",
-                          fontSize: "0.75rem",
-                          fontWeight: "700",
-                          width: "100%",
-                        }}
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      value={spec.value}
-                      onChange={(e) => {
-                        const newSpecs = [...(config.beforeAfter.specs || [])];
-                        newSpecs[sIdx].value = e.target.value;
-                        setConfig({
-                          ...config,
-                          beforeAfter: { ...config.beforeAfter, specs: newSpecs },
-                        });
-                      }}
-                      style={{
-                        background: "#161b26",
-                        border: "1px solid #283244",
-                        borderRadius: "6px",
-                        padding: "0.5rem 0.7rem",
-                        color: "#fff",
-                        fontSize: "0.85rem",
-                        fontWeight: "800",
-                        width: "100%",
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Puntos Neón Interactivos (Hotspots) con Ubicación Visual & Subida de Fotos */}
-            <div style={{ marginTop: "1.4rem", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.4rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "12px" }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: "900", color: "#f59e0b", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span>📍</span>
-                    <span>Puntos Neón Interactivos (Hotspots de Accesorios)</span>
-                  </h4>
-                  <p style={{ margin: "3px 0 0 0", fontSize: "0.8rem", color: "#94a3b8" }}>
-                    Agrega, ubica y sube fotos para cualquier mejora (estacionarias, bomper, visera, rines, etc.).
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleAddHotspot}
-                  className="primary-btn"
-                  style={{
-                    padding: "0.6rem 1.2rem",
-                    fontSize: "0.82rem",
-                    fontWeight: "900",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <span>➕</span>
-                  <span>Agregar Nuevo Punto (Ej: Estacionarias)</span>
-                </button>
-              </div>
-
-              {/* 1. Pizarra Visual Interactiva: Haz Clic en la Foto para Ubicar el Punto */}
-              <div style={{ marginBottom: "1.5rem" }}>
-                <div style={{
-                  background: "rgba(245, 158, 11, 0.1)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
-                  borderRadius: "8px",
-                  padding: "8px 14px",
-                  marginBottom: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "1rem" }}>🎯</span>
-                    <span style={{ fontSize: "0.8rem", color: "#fbbf24", fontWeight: "800" }}>
-                      UBICADOR VISUAL: Haz clic en cualquier parte de la foto para mover el Punto #{activeHotspotIndex + 1} (
-                      {config.beforeAfter?.hotspots?.[activeHotspotIndex]?.tag || "Accesorio"})
-                    </span>
-                  </div>
-                  <span style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: "700" }}>
-                    X: {config.beforeAfter?.hotspots?.[activeHotspotIndex]?.x || 50}% | Y: {config.beforeAfter?.hotspots?.[activeHotspotIndex]?.y || 50}%
-                  </span>
-                </div>
-
-                {/* Contenedor Interactivo con la Foto de la Mula */}
-                <div
-                  ref={pinboardRef}
-                  onClick={handlePinboardClick}
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    aspectRatio: "16 / 9",
-                    maxHeight: "420px",
-                    borderRadius: "14px",
-                    overflow: "hidden",
-                    cursor: "crosshair",
-                    border: "2px solid rgba(245, 158, 11, 0.4)",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.8)",
-                    background: "#000",
-                  }}
-                  title="Haz clic sobre cualquier parte de la mula para ubicar el punto seleccionado"
-                >
-                  <img
-                    src={config.beforeAfter?.afterImage || "/images/showroom/kenworth_after.jpg"}
-                    alt="Mula Mellos Truck"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }}
-                  />
-
-                  {/* Pines renderizados sobre la foto */}
-                  {(config.beforeAfter?.hotspots || []).map((spot, idx) => (
-                    <div
-                      key={spot.id || idx}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveHotspotIndex(idx);
-                      }}
-                      style={{
-                        position: "absolute",
-                        top: `${spot.y}%`,
-                        left: `${spot.x}%`,
-                        transform: "translate(-50%, -50%)",
-                        cursor: "pointer",
-                        zIndex: activeHotspotIndex === idx ? 25 : 15,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: activeHotspotIndex === idx ? "36px" : "28px",
-                          height: activeHotspotIndex === idx ? "36px" : "28px",
-                          borderRadius: "50%",
-                          background: activeHotspotIndex === idx ? "#f59e0b" : "#10141e",
-                          border: activeHotspotIndex === idx ? "2.5px solid #fff" : "2px solid #f59e0b",
-                          color: activeHotspotIndex === idx ? "#000" : "#f59e0b",
-                          fontWeight: "900",
-                          fontSize: activeHotspotIndex === idx ? "0.9rem" : "0.75rem",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          boxShadow: activeHotspotIndex === idx
-                            ? "0 0 20px rgba(245, 158, 11, 0.9), 0 0 0 4px rgba(245, 158, 11, 0.3)"
-                            : "0 0 10px rgba(0,0,0,0.8)",
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        {idx + 1}
-                      </div>
-                      <span
-                        style={{
-                          marginTop: "3px",
-                          background: "rgba(0,0,0,0.85)",
-                          border: "1px solid rgba(245, 158, 11, 0.5)",
-                          color: "#fbbf24",
-                          fontSize: "0.62rem",
-                          fontWeight: "800",
-                          padding: "1px 6px",
-                          borderRadius: "4px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {spot.tag || `PUNTO ${idx + 1}`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. Píldoras Selectoras de Puntos */}
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "1.2rem" }}>
-                {(config.beforeAfter?.hotspots || []).map((spot, idx) => (
-                  <button
-                    key={spot.id || idx}
-                    type="button"
-                    onClick={() => setActiveHotspotIndex(idx)}
-                    style={{
-                      background: activeHotspotIndex === idx ? "linear-gradient(135deg, #f59e0b, #d97706)" : "#141722",
-                      color: activeHotspotIndex === idx ? "#000" : "#cbd5e1",
-                      border: activeHotspotIndex === idx ? "1px solid #f59e0b" : "1px solid #283244",
-                      fontWeight: "800",
-                      fontSize: "0.82rem",
-                      padding: "8px 14px",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      transition: "all 0.2s ease",
-                    }}
-                  >
-                    <span>📍 Punto {idx + 1}:</span>
-                    <span>{spot.tag || `Accesorio ${idx + 1}`}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* 3. Panel de Edición Detallada del Punto Seleccionado */}
-              {config.beforeAfter?.hotspots?.[activeHotspotIndex] && (
-                <div
-                  style={{
-                    background: "#0e111a",
-                    border: "1.5px solid rgba(245, 158, 11, 0.35)",
-                    borderRadius: "14px",
-                    padding: "1.2rem 1.4rem",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.8rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "50%",
-                        background: "#f59e0b",
-                        color: "#000",
-                        display: "grid",
-                        placeItems: "center",
-                        fontWeight: "900",
-                        fontSize: "0.9rem",
-                      }}>
-                        {activeHotspotIndex + 1}
-                      </span>
-                      <div>
-                        <strong style={{ color: "#fff", fontSize: "0.95rem" }}>
-                          Configurando Punto #{activeHotspotIndex + 1}: {config.beforeAfter.hotspots[activeHotspotIndex].tag}
-                        </strong>
-                        <p style={{ margin: 0, fontSize: "0.76rem", color: "#94a3b8" }}>
-                          Sube la foto macro y personaliza el título y texto que verá el cliente.
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteHotspot(activeHotspotIndex)}
-                      style={{
-                        background: "rgba(239, 68, 68, 0.15)",
-                        border: "1px solid rgba(239, 68, 68, 0.4)",
-                        color: "#ef4444",
-                        padding: "6px 12px",
-                        borderRadius: "6px",
-                        fontSize: "0.78rem",
-                        fontWeight: "800",
-                        cursor: "pointer",
-                      }}
-                    >
-                      🗑️ Eliminar Punto
-                    </button>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: "1.5rem" }}>
-                    {/* Subida de Imagen del Accesorio */}
-                    <div>
-                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "800", color: "#f59e0b", marginBottom: "0.4rem" }}>
-                        📸 Foto Macro del Accesorio
-                      </label>
-                      <div style={{ height: "120px", borderRadius: "8px", overflow: "hidden", background: "#000", border: "1px solid #334155", marginBottom: "0.5rem" }}>
-                        <img
-                          src={config.beforeAfter.hotspots[activeHotspotIndex].image}
-                          alt="Detalle accesorio"
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                      </div>
-                      <ImageUploader
-                        currentImage={config.beforeAfter.hotspots[activeHotspotIndex].image}
-                        onUploadComplete={(url) => {
-                          const newHotspots = [...config.beforeAfter.hotspots];
-                          newHotspots[activeHotspotIndex].image = url;
-                          setConfig({
-                            ...config,
-                            beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
-                          });
-                          showSuccessToast("Foto del accesorio actualizada");
-                        }}
-                      />
-                    </div>
-
-                    {/* Campos de Información */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1rem" }}>
-                        <div>
-                          <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                            Etiqueta Corta (TAG en mayúsculas)
-                          </label>
-                          <input
-                            type="text"
-                            value={config.beforeAfter.hotspots[activeHotspotIndex].tag}
-                            onChange={(e) => {
-                              const newHotspots = [...config.beforeAfter.hotspots];
-                              newHotspots[activeHotspotIndex].tag = e.target.value.toUpperCase();
-                              setConfig({
-                                ...config,
-                                beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
-                              });
-                            }}
-                            placeholder="EJ: LUCES ESTACIONARIAS"
-                            style={{
-                              width: "100%",
-                              padding: "0.6rem",
-                              borderRadius: "6px",
-                              background: "#161b26",
-                              border: "1px solid #283244",
-                              color: "#fbbf24",
-                              fontWeight: "900",
-                              fontSize: "0.82rem",
-                            }}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                            Título del Accesorio
-                          </label>
-                          <input
-                            type="text"
-                            value={config.beforeAfter.hotspots[activeHotspotIndex].title}
-                            onChange={(e) => {
-                              const newHotspots = [...config.beforeAfter.hotspots];
-                              newHotspots[activeHotspotIndex].title = e.target.value;
-                              setConfig({
-                                ...config,
-                                beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
-                              });
-                            }}
-                            placeholder="EJ: Luces de Galería LED Ambar (Estacionarias)"
-                            style={{
-                              width: "100%",
-                              padding: "0.6rem",
-                              borderRadius: "6px",
-                              background: "#161b26",
-                              border: "1px solid #283244",
-                              color: "#fff",
-                              fontWeight: "800",
-                              fontSize: "0.82rem",
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "800", color: "#94a3b8", marginBottom: "0.3rem" }}>
-                          Descripción / Especificaciones del Accesorio
-                        </label>
-                        <input
-                          type="text"
-                          value={config.beforeAfter.hotspots[activeHotspotIndex].subtitle}
-                          onChange={(e) => {
-                            const newHotspots = [...config.beforeAfter.hotspots];
-                            newHotspots[activeHotspotIndex].subtitle = e.target.value;
-                            setConfig({
-                              ...config,
-                              beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
-                            });
-                          }}
-                          placeholder="EJ: Montaje de luces sandía de alta potencia en visera y cabina."
-                          style={{
-                            width: "100%",
-                            padding: "0.6rem",
-                            borderRadius: "6px",
-                            background: "#161b26",
-                            border: "1px solid #283244",
-                            color: "#cbd5e1",
-                            fontSize: "0.82rem",
-                          }}
-                        />
-                      </div>
-
-                      {/* Ajuste Manual de Coordenadas X / Y */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.2rem", background: "#080a10", padding: "0.8rem", borderRadius: "8px", border: "1px solid #1e2433" }}>
-                        <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.3rem" }}>
-                            <span style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: "800" }}>↔️ Posición Horizontal (X)</span>
-                            <span style={{ fontSize: "0.72rem", color: "#f59e0b", fontWeight: "900" }}>{config.beforeAfter.hotspots[activeHotspotIndex].x}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={config.beforeAfter.hotspots[activeHotspotIndex].x}
-                            onChange={(e) => {
-                              const newHotspots = [...config.beforeAfter.hotspots];
-                              newHotspots[activeHotspotIndex].x = Number(e.target.value);
-                              setConfig({
-                                ...config,
-                                beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
-                              });
-                            }}
-                            style={{ width: "100%", accentColor: "#f59e0b" }}
-                          />
-                        </div>
-
-                        <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.3rem" }}>
-                            <span style={{ fontSize: "0.72rem", color: "#94a3b8", fontWeight: "800" }}>↕️ Posición Vertical (Y)</span>
-                            <span style={{ fontSize: "0.72rem", color: "#f59e0b", fontWeight: "900" }}>{config.beforeAfter.hotspots[activeHotspotIndex].y}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={config.beforeAfter.hotspots[activeHotspotIndex].y}
-                            onChange={(e) => {
-                              const newHotspots = [...config.beforeAfter.hotspots];
-                              newHotspots[activeHotspotIndex].y = Number(e.target.value);
-                              setConfig({
-                                ...config,
-                                beforeAfter: { ...config.beforeAfter, hotspots: newHotspots },
-                              });
-                            }}
-                            style={{ width: "100%", accentColor: "#f59e0b" }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Dirección / Ubicación de Talleres</label>
+            <input
+              type="text"
+              value={config.locationText || ""}
+              onChange={(e) => setConfig({ ...config, locationText: e.target.value })}
+              className="w-full px-3.5 py-2 rounded-xl bg-carbon-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-500/50"
+            />
           </div>
         </div>
       )}
-
-      {/* 4. Barra Flotante Inferior de Guardado */}
-      <div
-        style={{
-          position: "sticky",
-          bottom: "16px",
-          marginTop: "2rem",
-          background: "rgba(18, 20, 26, 0.95)",
-          backdropFilter: "blur(14px)",
-          border: "1px solid rgba(245,158,11,0.4)",
-          borderRadius: "14px",
-          padding: "0.9rem 1.4rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          boxShadow: "0 10px 35px rgba(0,0,0,0.8)",
-          zIndex: 100,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "1.1rem" }}>⚡</span>
-          <span style={{ fontSize: "0.82rem", color: "#cbd5e1", fontWeight: "700" }}>
-            Los cambios se reflejarán de inmediato en la portada pública al guardar.
-          </span>
-        </div>
-
-        <div style={{ display: "flex", gap: "0.6rem" }}>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="primary-btn"
-            style={{
-              padding: "0.7rem 1.6rem",
-              fontSize: "0.88rem",
-              fontWeight: "900",
-              cursor: "pointer",
-            }}
-          >
-            {saving ? "Guardando en Vivo..." : "💾 Guardar Cambios Ahora"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
