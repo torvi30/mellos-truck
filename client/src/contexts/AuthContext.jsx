@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth } from "../firebase.js";
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
 
 const AuthContext = createContext();
 
@@ -58,11 +63,51 @@ export function AuthProvider({ children }) {
       }
       throw new Error("Credenciales inválidas en modo local.");
     }
-    const credentials = await signInWithEmailAndPassword(auth, email, password);
-    const token = await credentials.user.getIdToken();
-    localStorage.setItem("token", token);
-    setUser(credentials.user);
-    return credentials.user;
+
+    try {
+      const credentials = await signInWithEmailAndPassword(auth, email, password);
+      const token = await credentials.user.getIdToken();
+      localStorage.setItem("token", token);
+      setUser(credentials.user);
+      return credentials.user;
+    } catch (firebaseErr) {
+      // Si el usuario admin demo aún no existe en Firebase Auth, intentar auto-aprovisionarlo
+      if (
+        (firebaseErr.code === "auth/user-not-found" || firebaseErr.code === "auth/invalid-credential") &&
+        email === "admin@mellostrucks.com"
+      ) {
+        try {
+          const created = await createUserWithEmailAndPassword(auth, email, password);
+          const token = await created.user.getIdToken();
+          localStorage.setItem("token", token);
+          setUser(created.user);
+          return created.user;
+        } catch (createErr) {
+          if (createErr.code === "auth/operation-not-allowed") {
+            throw new Error("Debes habilitar el proveedor 'Correo y contraseña' en Firebase Console > Authentication.");
+          }
+          // Si ya existe pero la contraseña no coincidió, mostrar error de contraseña
+          if (createErr.code === "auth/email-already-in-use") {
+            throw new Error("Contraseña incorrecta para este usuario.");
+          }
+          throw createErr;
+        }
+      }
+
+      if (firebaseErr.code === "auth/operation-not-allowed") {
+        throw new Error("Debes habilitar el proveedor 'Correo y contraseña' en Firebase Console > Authentication.");
+      }
+      if (firebaseErr.code === "auth/wrong-password" || firebaseErr.code === "auth/invalid-credential") {
+        throw new Error("Correo o contraseña incorrectos.");
+      }
+      if (firebaseErr.code === "auth/user-not-found") {
+        throw new Error("Usuario no encontrado en la base de datos.");
+      }
+      if (firebaseErr.code === "auth/too-many-requests") {
+        throw new Error("Demasiados intentos fallidos. Intenta más tarde.");
+      }
+      throw new Error(firebaseErr.message || "Error al autenticar.");
+    }
   };
 
   const logout = async () => {
