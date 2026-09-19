@@ -12,7 +12,10 @@
   "firestore": {
     "rules": "firestore.rules"
   },
-  "storage": {
-    "rules": "storage.rules"
-  }
+  "storage": [
+    {
+      "target": "main",
+      "rules": "storage.rules"
+    }
+  ]
 }
